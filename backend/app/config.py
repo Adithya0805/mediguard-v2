@@ -32,8 +32,8 @@ class Settings(BaseSettings):
                 self.ALLOWED_ORIGINS = ["http://localhost:3000", "http://localhost:3001"]
 
     # ── AWS Bedrock Settings ──────────────────
-    AWS_ACCESS_KEY_ID: str
-    AWS_SECRET_ACCESS_KEY: str
+    AWS_ACCESS_KEY_ID: str = Field(default="")
+    AWS_SECRET_ACCESS_KEY: str = Field(default="")
     AWS_REGION: str = Field(default="us-east-1")
     BEDROCK_MODEL_ID: str = Field(default="anthropic.claude-3-sonnet-20240229-v1:0")
 
@@ -43,14 +43,14 @@ class Settings(BaseSettings):
     LLM_PROVIDER: str = Field(default="bedrock")  # "bedrock", "gemini", or "groq"
 
     # ── Pinecone Settings ─────────────────────
-    PINECONE_API_KEY: str
+    PINECONE_API_KEY: str = Field(default="")
     PINECONE_INDEX_NAME: str = Field(default="mediguard-medical-kb")
     PINECONE_ENVIRONMENT: Optional[str] = Field(default="us-east-1-aws")
 
     # ── Supabase Settings ─────────────────────
-    SUPABASE_URL: str
-    SUPABASE_ANON_KEY: str
-    SUPABASE_SERVICE_KEY: str
+    SUPABASE_URL: str = Field(default="")
+    SUPABASE_ANON_KEY: str = Field(default="")
+    SUPABASE_SERVICE_KEY: str = Field(default="")
 
     # ── LangSmith Settings ────────────────────
     LANGCHAIN_TRACING_V2: bool = Field(default=False)
