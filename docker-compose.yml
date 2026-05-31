@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mediguard-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    environment:
+      - APP_PORT=8000
+      - APP_ENV=production
+    networks:
+      - mediguard-net
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: mediguard-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_API_KEY=mediguard_v2_secret_api_key_override
+      - NODE_ENV=production
+    networks:
+      - mediguard-net
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+networks:
+  mediguard-net:
+    driver: bridge

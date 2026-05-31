@@ -1,0 +1,12 @@
+from fastapi import APIRouter
+from app.api.v1 import health, patient, report, auth, ehr
+
+api_router = APIRouter()
+
+# Include version 1 routers
+api_router.include_router(health.router, prefix="/health", tags=["Health"])
+api_router.include_router(patient.router, prefix="/patient", tags=["Patient Intake"])
+api_router.include_router(report.router, prefix="/report", tags=["Clinical Report"])
+api_router.include_router(auth.router, prefix="/auth", tags=["Clinician Authentication"])
+api_router.include_router(ehr.router, prefix="/ehr", tags=["EHR Interoperability"])
+

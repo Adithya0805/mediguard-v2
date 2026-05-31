@@ -1,0 +1,110 @@
+{
+  "patients": [
+    {
+      "id": "normal-case-001",
+      "description": "Normal low-urgency case — routine checkup",
+      "patient_name": "John Smith",
+      "patient_age": 35,
+      "patient_gender": "male",
+      "chief_complaint": "Mild headache and fatigue for 3 days without fever",
+      "symptoms": ["headache", "fatigue"],
+      "medical_history": [],
+      "current_medications": ["ibuprofen"],
+      "allergies": [],
+      "vitals": {
+        "bp": "118/76",
+        "heart_rate": 72,
+        "temperature": 36.5,
+        "spo2": 99
+      },
+      "expected_urgency": "low"
+    },
+    {
+      "id": "chest-pain-002",
+      "description": "High-urgency chest pain — suspected ACS",
+      "patient_name": "Robert Johnson",
+      "patient_age": 58,
+      "patient_gender": "male",
+      "chief_complaint": "Severe crushing chest pain radiating to left arm for 45 minutes with diaphoresis",
+      "symptoms": ["chest_pain", "diaphoresis", "left_arm_pain", "dyspnea"],
+      "medical_history": ["hypertension", "hyperlipidemia"],
+      "current_medications": ["aspirin", "atorvastatin", "amlodipine"],
+      "allergies": ["penicillin"],
+      "vitals": {
+        "bp": "162/98",
+        "heart_rate": 104,
+        "temperature": 37.1,
+        "spo2": 94
+      },
+      "expected_urgency": "high"
+    },
+    {
+      "id": "hypertensive-crisis-003",
+      "description": "Critical urgency — hypertensive emergency with end-organ damage signs",
+      "patient_name": "Priya Sharma",
+      "patient_age": 52,
+      "patient_gender": "female",
+      "chief_complaint": "Severe throbbing headache with blurred vision and sudden confusion onset",
+      "symptoms": ["severe_headache", "blurred_vision", "confusion", "nausea"],
+      "medical_history": ["chronic_hypertension", "stage_3_ckd"],
+      "current_medications": ["amlodipine", "ramipril"],
+      "allergies": [],
+      "vitals": {
+        "bp": "210/130",
+        "heart_rate": 92,
+        "temperature": 37.0,
+        "spo2": 96
+      },
+      "expected_urgency": "critical"
+    },
+    {
+      "id": "pediatric-case-004",
+      "description": "Pediatric case — febrile child with respiratory symptoms",
+      "patient_name": "Emily Chen",
+      "patient_age": 7,
+      "patient_gender": "female",
+      "chief_complaint": "High fever for 2 days with cough and difficulty breathing",
+      "symptoms": ["fever", "cough", "tachypnea", "decreased_appetite"],
+      "medical_history": ["asthma"],
+      "current_medications": ["salbutamol_inhaler"],
+      "allergies": ["amoxicillin"],
+      "vitals": {
+        "bp": "95/60",
+        "heart_rate": 120,
+        "temperature": 39.4,
+        "spo2": 93,
+        "respiratory_rate": 32
+      },
+      "expected_urgency": "high"
+    },
+    {
+      "id": "polypharmacy-elderly-005",
+      "description": "Elderly polypharmacy patient — dizziness and fall risk",
+      "patient_name": "Margaret Williams",
+      "patient_age": 81,
+      "patient_gender": "female",
+      "chief_complaint": "Recurrent dizziness and two falls in the past week with increasing fatigue",
+      "symptoms": ["dizziness", "syncope", "fatigue", "leg_swelling"],
+      "medical_history": [
+        "atrial_fibrillation",
+        "congestive_heart_failure",
+        "type_2_diabetes",
+        "hypothyroidism",
+        "osteoporosis"
+      ],
+      "current_medications": [
+        "warfarin", "digoxin", "furosemide",
+        "metformin", "levothyroxine", "alendronate"
+      ],
+      "allergies": ["NSAIDs", "sulfa_antibiotics"],
+      "vitals": {
+        "bp": "105/65",
+        "heart_rate": 52,
+        "temperature": 36.2,
+        "spo2": 94
+      },
+      "expected_urgency": "high",
+      "notes": "High fall risk. INR monitoring required. Polypharmacy interaction review mandatory."
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+# MediGuard Schemas Package
