@@ -91,7 +91,7 @@ jobs:
       run: npm install -g @railway/cli
 
     - name: Trigger Railway Production Deploy
-      run: railway up --detach
+      run: railway up --service mediguard-v2 --detach
       env:
         RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
