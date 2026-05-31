@@ -71,7 +71,7 @@ jobs:
     - name: Compile Next.js Build
       run: npm run build
       env:
-        NEXT_PUBLIC_API_URL: https://mediguard-backend.up.railway.app
+        NEXT_PUBLIC_API_URL: https://mediguard-v2-production.up.railway.app
         NEXT_PUBLIC_APP_NAME: "MediGuard V2"
         NEXT_PUBLIC_ENVIRONMENT: production
 

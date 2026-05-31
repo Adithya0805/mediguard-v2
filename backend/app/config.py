@@ -27,7 +27,16 @@ class Settings(BaseSettings):
         super().__init__(**values)
         if not self.ALLOWED_ORIGINS:
             if self.APP_ENV.lower() == "production":
-                self.ALLOWED_ORIGINS = ["https://mediguard-v2.vercel.app"]
+                self.ALLOWED_ORIGINS = [
+                    # Primary Vercel production domain
+                    "https://mediguard-v2.vercel.app",
+                    # Vercel preview deployment wildcard (git-branch previews)
+                    "https://mediguard-v2-git-main-chandrus-projects.vercel.app",
+                    # Any *.vercel.app subdomain (Vercel preview deployments)
+                    "https://mediguard-v2-chandrus-projects.vercel.app",
+                    # Allow the Railway domain itself for inter-service calls
+                    "https://mediguard-v2-production.up.railway.app",
+                ]
             else:
                 self.ALLOWED_ORIGINS = ["http://localhost:3000", "http://localhost:3001"]
 

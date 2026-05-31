@@ -10,14 +10,27 @@ import {
   ApiError
 } from '@/types';
 
-let rawApiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-if (rawApiUrl && !rawApiUrl.startsWith('http://') && !rawApiUrl.startsWith('https://')) {
-  rawApiUrl = `https://${rawApiUrl}`;
+// In Vercel production, use relative URL so requests go through vercel.json rewrites → Railway proxy
+// In local dev, use NEXT_PUBLIC_API_URL directly (localhost:8000)
+const isServer = typeof window === 'undefined';
+const isProduction = process.env.NEXT_PUBLIC_ENVIRONMENT === 'production';
+
+let apiBaseURL: string;
+if (isProduction && !isServer) {
+  // Use relative URL in browser — Vercel rewrites /api/* → Railway backend
+  apiBaseURL = '';
+} else {
+  // Dev/SSR: use the full URL from environment
+  let rawApiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  if (rawApiUrl && !rawApiUrl.startsWith('http://') && !rawApiUrl.startsWith('https://')) {
+    rawApiUrl = `https://${rawApiUrl}`;
+  }
+  apiBaseURL = rawApiUrl;
 }
 
 // Establish Axios instance with environment variables and defaults
 const api = axios.create({
-  baseURL: rawApiUrl,
+  baseURL: apiBaseURL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -155,8 +168,9 @@ export async function getAuditTrail(sessionId: string): Promise<AuditLogEntry[]>
 }
 
 export function getPdfUrl(sessionId: string): string {
-  const baseURL = process.env.NEXT_PUBLIC_API_URL || '';
   const apiKey = process.env.NEXT_PUBLIC_API_KEY || 'mediguard_v2_secret_api_key_override';
+  // Use relative URL in production (Vercel proxy handles routing), direct URL in dev
+  const baseURL = (isProduction && !isServer) ? '' : (process.env.NEXT_PUBLIC_API_URL || '');
   return `${baseURL}/api/v1/report/${sessionId}/pdf?api_key=${encodeURIComponent(apiKey)}`;
 }
 
