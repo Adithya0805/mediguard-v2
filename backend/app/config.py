@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     # ── Application Settings ─────────────────
     APP_NAME: str = Field(default="MediGuard V2")
     APP_ENV: str = Field(default="development")
-    APP_PORT: int = Field(default=8000)
+    APP_PORT: int = Field(default=8080)
     SECRET_KEY: str = Field(default="dev-secret-key-32-chars-long-at-least-here-12345")
 
     # Allowed Origins for CORS configuration

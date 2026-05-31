@@ -26,8 +26,7 @@ WORKDIR /app
 ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    APP_ENV=production \
-    PORT=8000
+    APP_ENV=production
 
 RUN groupadd -g 10001 appgroup && \
     useradd -u 10001 -g appgroup -d /app -s /sbin/nologin appuser
@@ -40,6 +39,7 @@ RUN chown -R appuser:appgroup /app
 
 USER appuser
 
-EXPOSE $PORT
+# PORT is injected by Railway at runtime (default 8080). Do NOT hardcode it.
+EXPOSE 8080
 
-CMD uvicorn app.main:app --host 0.0.0.0 --port $PORT
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}"]
