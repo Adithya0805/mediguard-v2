@@ -10,9 +10,14 @@ import {
   ApiError
 } from '@/types';
 
+let rawApiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+if (rawApiUrl && !rawApiUrl.startsWith('http://') && !rawApiUrl.startsWith('https://')) {
+  rawApiUrl = `https://${rawApiUrl}`;
+}
+
 // Establish Axios instance with environment variables and defaults
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+  baseURL: rawApiUrl,
   headers: {
     'Content-Type': 'application/json',
   },
