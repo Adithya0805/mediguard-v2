@@ -20,11 +20,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true });
     try {
       const response = await loginClinician(username, password);
+      // Save token to localStorage FIRST so api.ts interceptor can inject it into the next request
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('medi_token', response.access_token);
+        localStorage.setItem('medi_clinician_name', response.name);
+        localStorage.setItem('medi_clinician_role', response.role);
+      }
       set({ 
         token: response.access_token,
         isLoading: false 
       });
-      // Fetch fresh profile to populate store
+      // Fetch fresh profile to populate store (token is now in localStorage for interceptor)
       const profile = await getClinicianProfile();
       set({ clinician: profile });
       return true;
