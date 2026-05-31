@@ -22,8 +22,8 @@
   ],
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "https://mediguard-v2-production.up.railway.app/api/:path*"
+      "source": "/api/v1/:path*",
+      "destination": "https://mediguard-v2-production.up.railway.app/api/v1/:path*"
     }
   ]
 }
