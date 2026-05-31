@@ -10,13 +10,9 @@ import {
   ApiError
 } from '@/types';
 
-// Detect environment to configure the backend connection path
-const isProd = process.env.NEXT_PUBLIC_ENVIRONMENT === 'production';
-const baseURL = isProd ? '' : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000');
-
 // Establish Axios instance with environment variables and defaults
 const api = axios.create({
-  baseURL: baseURL,
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
   headers: {
     'Content-Type': 'application/json',
   },
