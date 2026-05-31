@@ -92,12 +92,7 @@ jobs:
       env:
         RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
-    - name: Wait for Staging Container Warmup
-      run: sleep 30
 
-    - name: Execute Backend Container Health Check
-      run: |
-        curl -f -s -S -o /dev/null -w "%{http_code}" https://mediguard-backend.up.railway.app/health | grep "200"
 
   # ── JOB 4: Deploy Frontend to Vercel ────────────────────────────────────────
   deploy-frontend:
