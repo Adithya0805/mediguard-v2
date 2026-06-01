@@ -109,16 +109,16 @@ export default function PatientIntakeForm() {
       const sessionResponse = await createSession(sessionPayload);
       const sessionId = sessionResponse.session_id;
 
-      // 2. Navigate immediately to case tracker
-      toast.success('Patient Intake Registered! Launching Graph pipeline...');
-      router.push(`/patient/${sessionId}`);
-
-      // 3. Initiate graph execution (non-blocking)
+      // 2. Initiate graph execution (non-blocking on server, but awaited here to guarantee request delivery)
       try {
         await generateReport(sessionId);
       } catch (err) {
         console.error('Failed to trigger background analysis:', err);
       }
+
+      // 3. Navigate immediately to case tracker
+      toast.success('Patient Intake Registered! Launching Graph pipeline...');
+      router.push(`/patient/${sessionId}`);
 
     } catch (e) {
       const err = e as { message?: string };

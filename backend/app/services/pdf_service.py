@@ -383,13 +383,25 @@ class ClinicalPDFGenerator:
         <b>Chief Complaint:</b> {patient_data.get('chief_complaint', 'None')}
         """
         
-        vitals = patient_data.get('vitals', {})
-        pat_right = f"""
-        <b>Clinical Vitals:</b><br/>
-        • <b>BP:</b> {vitals.get('bp', 'N/A')} mmHg &nbsp;&nbsp;&nbsp;&nbsp; • <b>HR:</b> {vitals.get('heart_rate', 'N/A')} bpm<br/>
-        • <b>Temp:</b> {vitals.get('temperature', 'N/A')} °C &nbsp;&nbsp;&nbsp;&nbsp; • <b>SpO2:</b> {vitals.get('spo2', 'N/A')}%<br/>
-        • <b>Weight:</b> {vitals.get('weight', 'N/A')} kg &nbsp;&nbsp;&nbsp;&nbsp; • <b>Height:</b> {vitals.get('height', 'N/A')} cm
-        """
+        vitals = patient_data.get('vitals', {}) or {}
+        vitals_list = []
+        if vitals.get('bp'):
+            vitals_list.append(f"• <b>BP:</b> {vitals.get('bp')} mmHg")
+        if vitals.get('heart_rate'):
+            vitals_list.append(f"• <b>HR:</b> {vitals.get('heart_rate')} bpm")
+        if vitals.get('temperature'):
+            vitals_list.append(f"• <b>Temp:</b> {vitals.get('temperature')} °C")
+        if vitals.get('spo2'):
+            vitals_list.append(f"• <b>SpO2:</b> {vitals.get('spo2')}%")
+        if vitals.get('weight'):
+            vitals_list.append(f"• <b>Weight:</b> {vitals.get('weight')} kg")
+        if vitals.get('height'):
+            vitals_list.append(f"• <b>Height:</b> {vitals.get('height')} cm")
+
+        if not vitals_list:
+            pat_right = "<b>Clinical Vitals:</b><br/>No physiological vitals recorded."
+        else:
+            pat_right = "<b>Clinical Vitals:</b><br/>" + "<br/>".join(vitals_list)
 
         pat_table = Table([[Paragraph(pat_left, self.BodyText), Paragraph(pat_right, self.BodyText)]], colWidths=[270, 270])
         pat_table.setStyle(TableStyle([

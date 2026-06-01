@@ -168,10 +168,13 @@ export async function getAuditTrail(sessionId: string): Promise<AuditLogEntry[]>
 }
 
 export function getPdfUrl(sessionId: string): string {
-  const apiKey = process.env.NEXT_PUBLIC_API_KEY || 'mediguard_v2_secret_api_key_override';
+  let token = '';
+  if (typeof window !== 'undefined') {
+    token = localStorage.getItem('medi_token') || '';
+  }
   // Use relative URL in production (Vercel proxy handles routing), direct URL in dev
   const baseURL = (isProduction && !isServer) ? '' : (process.env.NEXT_PUBLIC_API_URL || '');
-  return `${baseURL}/api/v1/report/${sessionId}/pdf?api_key=${encodeURIComponent(apiKey)}`;
+  return `${baseURL}/api/v1/report/${sessionId}/pdf?token=${encodeURIComponent(token)}`;
 }
 
 export async function getFhirBundle(sessionId: string): Promise<object> {

@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from '@/hooks/useSession';
-import { getAuditTrail } from '@/lib/api';
+import { getAuditTrail, generateReport } from '@/lib/api';
 import { AuditLogEntry } from '@/types';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
@@ -58,6 +58,21 @@ export default function SessionDetailPage() {
 
     return () => clearInterval(interval);
   }, [session]);
+
+  // Trigger background report generation if session status is pending (safety gate auto-trigger)
+  useEffect(() => {
+    const triggerAnalysis = async () => {
+      if (session && session.status === 'pending') {
+        try {
+          console.log('[Auto-Trigger] Session is pending. Initiating clinical analysis graph pipeline...');
+          await generateReport(sessionId);
+        } catch (err) {
+          console.error('[Auto-Trigger] Failed to auto-start pending clinical analysis:', err);
+        }
+      }
+    };
+    triggerAnalysis();
+  }, [sessionId, session]);
 
   if (isLoading && !session) {
     return (
@@ -307,23 +322,37 @@ export default function SessionDetailPage() {
             <div className="p-6 rounded-2xl bg-surface border border-border flex flex-col gap-5 text-left flex-1">
               <h3 className="font-sans font-bold text-base text-text-primary tracking-wide">Physiological Vitals</h3>
               
-              <div className="flex flex-col gap-3.5">
-                {[
-                  { name: 'Blood Pressure', val: session.vitals.bp || 'N/A', unit: 'mmHg' },
-                  { name: 'Heart Rate', val: session.vitals.heart_rate || 'N/A', unit: 'bpm' },
-                  { name: 'Body Temperature', val: session.vitals.temperature || 'N/A', unit: '°C' },
-                  { name: 'Oxygen Saturation', val: session.vitals.spo2 || 'N/A', unit: '%' },
-                  { name: 'Weight', val: session.vitals.weight || 'N/A', unit: 'kg' },
-                  { name: 'Height', val: session.vitals.height || 'N/A', unit: 'cm' },
-                ].map((item, idx) => (
-                  <div key={idx} className="flex justify-between border-b border-border/40 pb-2 text-xs">
-                    <span className="text-text-secondary font-medium">{item.name}</span>
-                    <span className="font-mono font-bold text-text-primary">
-                      {item.val} <span className="text-[9px] text-text-secondary uppercase ml-0.5">{item.unit}</span>
-                    </span>
+              {(() => {
+                const filteredVitals = [
+                  { name: 'Blood Pressure', val: session.vitals?.bp, unit: 'mmHg' },
+                  { name: 'Heart Rate', val: session.vitals?.heart_rate, unit: 'bpm' },
+                  { name: 'Body Temperature', val: session.vitals?.temperature, unit: '°C' },
+                  { name: 'Oxygen Saturation', val: session.vitals?.spo2, unit: '%' },
+                  { name: 'Weight', val: session.vitals?.weight, unit: 'kg' },
+                  { name: 'Height', val: session.vitals?.height, unit: 'cm' },
+                ].filter(item => item.val !== undefined && item.val !== null && item.val !== '' && item.val !== 'N/A');
+
+                if (filteredVitals.length === 0) {
+                  return (
+                    <div className="text-xs text-text-secondary italic text-center py-4 font-sans">
+                      No baseline physiological vitals recorded.
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="flex flex-col gap-3.5">
+                    {filteredVitals.map((item, idx) => (
+                      <div key={idx} className="flex justify-between border-b border-border/40 pb-2 text-xs">
+                        <span className="text-text-secondary font-medium">{item.name}</span>
+                        <span className="font-mono font-bold text-text-primary">
+                          {item.val} <span className="text-[9px] text-text-secondary uppercase ml-0.5">{item.unit}</span>
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                );
+              })()}
             </div>
 
             {/* Current Medications */}

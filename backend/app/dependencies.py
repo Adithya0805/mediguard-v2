@@ -81,26 +81,30 @@ def verify_jwt_token(
     settings: Settings = Depends(get_settings)
 ) -> dict:
     """
-    Validates signed clinician JWT credentials provided in the Authorization header.
-    Expects format: Bearer <token>
+    Validates signed clinician JWT credentials provided in the Authorization header or query param.
     """
     client_ip = request.client.host if request.client else "unknown-ip"
     
-    if not authorization:
-        logger.warning("Missing Authorization header in request", client_ip=client_ip)
+    token = None
+    if authorization:
+        if authorization.startswith("Bearer "):
+            token = authorization.split(" ")[1].strip()
+        else:
+            logger.warning("Invalid Authorization header format", client_ip=client_ip)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid Authorization token format. Must be Bearer <token>."
+            )
+    else:
+        # Fallback to query parameter token (useful for browser file downloads like PDF)
+        token = request.query_params.get("token")
+        
+    if not token:
+        logger.warning("Missing Authorization credentials in request", client_ip=client_ip)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing Authorization Bearer header credentials."
+            detail="Missing Authorization Bearer header or token query parameter."
         )
-        
-    if not authorization.startswith("Bearer "):
-        logger.warning("Invalid Authorization header format", client_ip=client_ip)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid Authorization token format. Must be Bearer <token>."
-        )
-        
-    token = authorization.split(" ")[1].strip()
     
     try:
         from jose import jwt
@@ -132,10 +136,10 @@ def verify_clinical_auth(
     settings: Settings = Depends(get_settings)
 ) -> dict:
     """
-    Validates either the clinician JWT Bearer token or the X-API-Key credential.
+    Validates either the clinician JWT Bearer token/query token or the X-API-Key credential.
     Returns standard clinician/agent metadata dict.
     """
-    if authorization:
+    if authorization or request.query_params.get("token"):
         return verify_jwt_token(request, authorization, settings)
     
     # API Key fallback verification
