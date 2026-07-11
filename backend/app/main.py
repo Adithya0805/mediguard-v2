@@ -72,7 +72,15 @@ app = FastAPI(
 )
 
 # CORS middleware configurations for dev/prod environments
-origins = settings.ALLOWED_ORIGINS
+origins = list(settings.ALLOWED_ORIGINS)
+# Add WebSocket equivalents to allowed origins for full compatibility
+ws_origins = []
+for origin in origins:
+    if origin.startswith("http://"):
+        ws_origins.append(origin.replace("http://", "ws://"))
+    elif origin.startswith("https://"):
+        ws_origins.append(origin.replace("https://", "wss://"))
+origins = list(set(origins + ws_origins))
 
 app.add_middleware(
     CORSMiddleware,
@@ -137,3 +145,8 @@ async def get_metrics(api_key: str = Depends(verify_api_key)):
 
 # Mount the complete API Router
 app.include_router(api_router, prefix="/api/v1")
+
+# Mount the WebSocket router directly at root level (no /api/v1 prefix)
+from app.api.v1.websocket import router as ws_router
+app.include_router(ws_router)
+

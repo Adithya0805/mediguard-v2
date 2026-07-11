@@ -16,6 +16,8 @@ from app.llm.router import LLMRouter
 from app.rag.retriever import MedicalRetriever
 from app.schemas.agent import AgentState
 from app.utils.logger import get_logger
+from app.utils.websocket_manager import ws_manager
+from app.schemas.websocket import AgentEvent, AgentEventType
 
 logger = get_logger("app.agents.intake_agent")
 
@@ -29,7 +31,7 @@ _SYSTEM_PROMPT = (
 # ── User prompt template ──────────────────────────────────────────────────────
 _USER_PROMPT_TEMPLATE = """\
 Parse this patient intake and return a JSON object with:
-{{
+{
   "patient_summary": "2-3 sentence clinical summary",
   "normalized_symptoms": ["list of symptoms in clinical terminology"],
   "symptom_onset": "acute / subacute / chronic",
@@ -38,7 +40,7 @@ Parse this patient intake and return a JSON object with:
   "relevant_medications": ["medications relevant to symptoms"],
   "red_flags": ["any immediately concerning symptoms"],
   "intake_confidence": 0.0-1.0
-}}
+}
 
 Patient data:
 {patient_data}
@@ -70,6 +72,27 @@ class IntakeAgent:
         session_id = state.get("session_id", "unknown")
         logger.info("IntakeAgent starting", session_id=session_id)
 
+        # Broadcast start event
+        try:
+            await ws_manager.broadcast_to_session(
+                session_id,
+                AgentEvent(
+                    event_type=AgentEventType.AGENT_STARTED,
+                    session_id=session_id,
+                    agent_name="intake",
+                    timestamp=datetime.utcnow().isoformat(),
+                    message="Intake Agent parsing patient data...",
+                    data={
+                        "agent_display_name": "Intake Agent",
+                        "agent_icon": "clipboard-list",
+                        "estimated_seconds": 8
+                    }
+                )
+            )
+        except Exception as ws_err:
+            logger.warning("Failed to broadcast agent_started event via websocket", session_id=session_id, error=str(ws_err))
+
+        agent_start_time = datetime.utcnow()
         patient_data = state.get("patient_data", {})
 
         try:
@@ -93,6 +116,7 @@ class IntakeAgent:
                 patient_name=patient_data.get("patient_name", "unknown"),
             )
 
+            # Invoke the LLM
             response = await llm.ainvoke(messages)
             
             if hasattr(response, "content"):
@@ -124,6 +148,26 @@ class IntakeAgent:
                 red_flags_count=len(parsed.get("red_flags", [])),
             )
 
+            # Broadcast completed event
+            duration = (datetime.utcnow() - agent_start_time).seconds
+            try:
+                await ws_manager.broadcast_to_session(
+                    session_id,
+                    AgentEvent(
+                        event_type=AgentEventType.AGENT_COMPLETED,
+                        session_id=session_id,
+                        agent_name="intake",
+                        timestamp=datetime.utcnow().isoformat(),
+                        message="Intake Agent completed",
+                        data={
+                            "duration_seconds": duration,
+                            "intake_confidence": state["intake_confidence"]
+                        }
+                    )
+                )
+            except Exception as ws_err:
+                logger.warning("Failed to broadcast agent_completed event via websocket", session_id=session_id, error=str(ws_err))
+
         except Exception as exc:
             logger.error(
                 "IntakeAgent failed",
@@ -137,6 +181,26 @@ class IntakeAgent:
             # Set safe fallback intake so downstream agents can still run
             state["parsed_intake"] = _build_fallback_intake(patient_data)
             state["intake_confidence"] = 0.1
+
+            # Broadcast failed event
+            duration = (datetime.utcnow() - agent_start_time).seconds
+            try:
+                await ws_manager.broadcast_to_session(
+                    session_id,
+                    AgentEvent(
+                        event_type=AgentEventType.AGENT_FAILED,
+                        session_id=session_id,
+                        agent_name="intake",
+                        timestamp=datetime.utcnow().isoformat(),
+                        message=f"Intake Agent failed: {str(exc)}",
+                        data={
+                            "duration_seconds": duration,
+                            "error": str(exc)
+                        }
+                    )
+                )
+            except Exception as ws_err:
+                logger.warning("Failed to broadcast agent_failed event via websocket", session_id=session_id, error=str(ws_err))
 
         # ── Update orchestration metadata ────────────────────────────────────
         completed = list(state.get("completed_agents", []))

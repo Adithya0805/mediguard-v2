@@ -22,6 +22,8 @@ from app.llm.router import LLMRouter
 from app.rag.retriever import MedicalRetriever, format_context
 from app.schemas.agent import AgentState
 from app.utils.logger import get_logger
+from app.utils.websocket_manager import ws_manager
+from app.schemas.websocket import AgentEvent, AgentEventType
 
 logger = get_logger("app.agents.drug_agent")
 
@@ -42,30 +44,30 @@ Primary diagnosis context: {primary_diagnosis}
 Drug reference context: {retrieved_context}
 
 Return a JSON object with:
-{{
+{
   "interactions_found": true/false,
   "drug_interactions": [
-    {{
+    {
       "drug_a": "",
       "drug_b": "",
       "severity": "mild | moderate | severe | contraindicated",
       "mechanism": "brief pharmacological explanation",
       "clinical_effect": "what happens clinically",
       "management": "how to manage this interaction"
-    }}
+    }
   ],
   "allergy_conflicts": [
-    {{
+    {
       "medication": "",
       "allergen": "",
       "risk": "description of risk"
-    }}
+    }
   ],
   "contraindications": ["list of specific contraindications found"],
   "overall_medication_safe": true/false,
   "pharmacist_review_required": true/false,
   "safety_notes": ["important safety notes"]
-}}
+}
 """
 
 
@@ -104,6 +106,28 @@ class DrugAgent:
             medication_count=len(current_medications),
         )
 
+        # Broadcast start event
+        try:
+            await ws_manager.broadcast_to_session(
+                session_id,
+                AgentEvent(
+                    event_type=AgentEventType.AGENT_STARTED,
+                    session_id=session_id,
+                    agent_name="drug_check",
+                    timestamp=datetime.utcnow().isoformat(),
+                    message="Drug Agent is analyzing...",
+                    data={
+                        "agent_display_name": "Drug Agent",
+                        "agent_icon": "pill",
+                        "estimated_seconds": 8
+                    }
+                )
+            )
+        except Exception as ws_err:
+            logger.warning("Failed to broadcast agent_started event via websocket", session_id=session_id, error=str(ws_err))
+
+        agent_start_time = datetime.utcnow()
+
         # ── Early exit: no medications to check ──────────────────────────────
         if not current_medications:
             logger.info(
@@ -113,6 +137,26 @@ class DrugAgent:
             state["drug_interactions"] = []
             state["contraindications"] = []
             state["medication_safe"]   = True
+
+            # Broadcast completed event for early exit
+            duration = (datetime.utcnow() - agent_start_time).seconds
+            try:
+                await ws_manager.broadcast_to_session(
+                    session_id,
+                    AgentEvent(
+                        event_type=AgentEventType.AGENT_COMPLETED,
+                        session_id=session_id,
+                        agent_name="drug_check",
+                        timestamp=datetime.utcnow().isoformat(),
+                        message="Drug Agent completed",
+                        data={
+                            "duration_seconds": duration,
+                            "interactions_found": 0
+                        }
+                    )
+                )
+            except Exception as ws_err:
+                logger.warning("Failed to broadcast agent_completed event via websocket", session_id=session_id, error=str(ws_err))
 
             completed = list(state.get("completed_agents", []))
             completed.append("drug_check")
@@ -190,6 +234,26 @@ class DrugAgent:
                 interaction_count=len(state["drug_interactions"]),
             )
 
+            # Broadcast completed event
+            duration = (datetime.utcnow() - agent_start_time).seconds
+            try:
+                await ws_manager.broadcast_to_session(
+                    session_id,
+                    AgentEvent(
+                        event_type=AgentEventType.AGENT_COMPLETED,
+                        session_id=session_id,
+                        agent_name="drug_check",
+                        timestamp=datetime.utcnow().isoformat(),
+                        message="Drug Agent completed",
+                        data={
+                            "duration_seconds": duration,
+                            "interactions_found": len(state.get("drug_interactions", []))
+                        }
+                    )
+                )
+            except Exception as ws_err:
+                logger.warning("Failed to broadcast agent_completed event via websocket", session_id=session_id, error=str(ws_err))
+
         except Exception as exc:
             logger.error("DrugAgent failed", session_id=session_id, error=str(exc))
 
@@ -200,6 +264,26 @@ class DrugAgent:
             state["drug_interactions"] = []
             state["contraindications"] = []
             state["medication_safe"]   = False    # conservative: unknown = unsafe
+
+            # Broadcast failed event
+            duration = (datetime.utcnow() - agent_start_time).seconds
+            try:
+                await ws_manager.broadcast_to_session(
+                    session_id,
+                    AgentEvent(
+                        event_type=AgentEventType.AGENT_FAILED,
+                        session_id=session_id,
+                        agent_name="drug_check",
+                        timestamp=datetime.utcnow().isoformat(),
+                        message=f"Drug Agent failed: {str(exc)}",
+                        data={
+                            "duration_seconds": duration,
+                            "error": str(exc)
+                        }
+                    )
+                )
+            except Exception as ws_err:
+                logger.warning("Failed to broadcast agent_failed event via websocket", session_id=session_id, error=str(ws_err))
 
         # ── Update orchestration metadata ────────────────────────────────────
         completed = list(state.get("completed_agents", []))

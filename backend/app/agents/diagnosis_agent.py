@@ -19,6 +19,8 @@ from app.llm.router import LLMRouter
 from app.rag.retriever import MedicalRetriever, format_context
 from app.schemas.agent import AgentState
 from app.utils.logger import get_logger
+from app.utils.websocket_manager import ws_manager
+from app.schemas.websocket import AgentEvent, AgentEventType
 
 logger = get_logger("app.agents.diagnosis_agent")
 
@@ -97,6 +99,28 @@ class DiagnosisAgent:
         patient_data     = state.get("patient_data", {})
 
         logger.info("DiagnosisAgent starting", session_id=session_id)
+
+        # Broadcast start event
+        try:
+            await ws_manager.broadcast_to_session(
+                session_id,
+                AgentEvent(
+                    event_type=AgentEventType.AGENT_STARTED,
+                    session_id=session_id,
+                    agent_name="diagnosis",
+                    timestamp=datetime.utcnow().isoformat(),
+                    message="Diagnosis Agent is analyzing...",
+                    data={
+                        "agent_display_name": "Diagnosis Agent",
+                        "agent_icon": "search",
+                        "estimated_seconds": 20
+                    }
+                )
+            )
+        except Exception as ws_err:
+            logger.warning("Failed to broadcast agent_started event via websocket", session_id=session_id, error=str(ws_err))
+
+        agent_start_time = datetime.utcnow()
 
         # ── Step 1: Second focused RAG retrieval on symptom clusters ─────────
         symptom_clusters = symptoms_analysis.get("symptom_clusters", [])
@@ -180,6 +204,26 @@ class DiagnosisAgent:
                 urgency=state["urgency_level"],
             )
 
+            # Broadcast completed event
+            duration = (datetime.utcnow() - agent_start_time).seconds
+            try:
+                await ws_manager.broadcast_to_session(
+                    session_id,
+                    AgentEvent(
+                        event_type=AgentEventType.AGENT_COMPLETED,
+                        session_id=session_id,
+                        agent_name="diagnosis",
+                        timestamp=datetime.utcnow().isoformat(),
+                        message="Diagnosis Agent completed",
+                        data={
+                            "duration_seconds": duration,
+                            "ddx_count": len(state.get("differential_diagnosis", []))
+                        }
+                    )
+                )
+            except Exception as ws_err:
+                logger.warning("Failed to broadcast agent_completed event via websocket", session_id=session_id, error=str(ws_err))
+
         except Exception as exc:
             logger.error("DiagnosisAgent failed", session_id=session_id, error=str(exc))
 
@@ -192,6 +236,26 @@ class DiagnosisAgent:
 
             state["differential_diagnosis"] = _build_fallback_ddx(patient_data)
             state["primary_diagnosis"]      = {}
+
+            # Broadcast failed event
+            duration = (datetime.utcnow() - agent_start_time).seconds
+            try:
+                await ws_manager.broadcast_to_session(
+                    session_id,
+                    AgentEvent(
+                        event_type=AgentEventType.AGENT_FAILED,
+                        session_id=session_id,
+                        agent_name="diagnosis",
+                        timestamp=datetime.utcnow().isoformat(),
+                        message=f"Diagnosis Agent failed: {str(exc)}",
+                        data={
+                            "duration_seconds": duration,
+                            "error": str(exc)
+                        }
+                    )
+                )
+            except Exception as ws_err:
+                logger.warning("Failed to broadcast agent_failed event via websocket", session_id=session_id, error=str(ws_err))
 
         # ── Update orchestration metadata ────────────────────────────────────
         completed = list(state.get("completed_agents", []))

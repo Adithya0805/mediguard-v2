@@ -35,6 +35,8 @@ from app.schemas.agent import AgentState, build_initial_state
 from app.utils.logger import get_logger
 from app.utils.metrics import metrics
 from app.utils.exceptions import AgentExecutionException as AgentExecutionError
+from app.utils.websocket_manager import ws_manager
+from app.schemas.websocket import AgentEvent, AgentEventType
 
 logger = get_logger("app.agents.orchestrator")
 
@@ -143,6 +145,27 @@ class MediGuardOrchestrator:
         metrics.record_pipeline_start()
         pipeline_start = __import__('time').monotonic()
 
+        # Broadcast pipeline started
+        try:
+            await ws_manager.broadcast_to_session(
+                session_id,
+                AgentEvent(
+                    event_type=AgentEventType.PIPELINE_STARTED,
+                    session_id=session_id,
+                    timestamp=datetime.now(timezone.utc).isoformat(),
+                    message="MediGuard AI pipeline initiated",
+                    data={
+                        "total_agents": 5,
+                        "agents_sequence": [
+                            "intake", "symptom",
+                            "diagnosis", "drug_check", "report"
+                        ]
+                    }
+                )
+            )
+        except Exception as ws_err:
+            logger.warning("Failed to broadcast pipeline_started event", session_id=session_id, error=str(ws_err))
+
         try:
             # Invoke the compiled graph with a 120s timeout safety net
             final_state = await asyncio.wait_for(
@@ -164,6 +187,28 @@ class MediGuardOrchestrator:
                 report_generated=final_state.get("report_generated"),
                 duration_seconds=duration,
             )
+
+            # Broadcast pipeline completed
+            try:
+                await ws_manager.broadcast_to_session(
+                    session_id,
+                    AgentEvent(
+                        event_type=AgentEventType.PIPELINE_COMPLETED,
+                        session_id=session_id,
+                        timestamp=datetime.now(timezone.utc).isoformat(),
+                        message="Clinical analysis complete. Report ready.",
+                        data={
+                            "total_duration_seconds": duration,
+                            "urgency_level": final_state.get("urgency_level", "medium"),
+                            "primary_diagnosis": final_state.get("primary_diagnosis", {}).get("diagnosis", ""),
+                            "ddx_count": len(final_state.get("differential_diagnosis", [])),
+                            "report_generated": True
+                        }
+                    )
+                )
+            except Exception as ws_err:
+                logger.warning("Failed to broadcast pipeline_completed event", session_id=session_id, error=str(ws_err))
+
             return final_state
 
         except asyncio.TimeoutError:
@@ -184,6 +229,22 @@ class MediGuardOrchestrator:
             }]
             failure_state["pipeline_end_time"] = datetime.now(timezone.utc).isoformat()
             failure_state["urgency_level"]     = "high"  # safety default on timeout
+
+            # Broadcast pipeline failed
+            try:
+                await ws_manager.broadcast_to_session(
+                    session_id,
+                    AgentEvent(
+                        event_type=AgentEventType.PIPELINE_FAILED,
+                        session_id=session_id,
+                        timestamp=datetime.now(timezone.utc).isoformat(),
+                        message="Pipeline encountered an error: Timeout",
+                        data={"error": "Pipeline timeout after 120 seconds"}
+                    )
+                )
+            except Exception as ws_err:
+                logger.warning("Failed to broadcast pipeline_failed event", session_id=session_id, error=str(ws_err))
+
             raise AgentExecutionError("Clinical pipeline timeout after 120 seconds")
 
         except Exception as exc:
@@ -206,6 +267,22 @@ class MediGuardOrchestrator:
             ]
             failure_state["pipeline_end_time"] = datetime.now(timezone.utc).isoformat()
             failure_state["urgency_level"]     = "high"   # safety default
+
+            # Broadcast pipeline failed
+            try:
+                await ws_manager.broadcast_to_session(
+                    session_id,
+                    AgentEvent(
+                        event_type=AgentEventType.PIPELINE_FAILED,
+                        session_id=session_id,
+                        timestamp=datetime.now(timezone.utc).isoformat(),
+                        message=f"Pipeline encountered an error: {str(exc)}",
+                        data={"error": str(exc)}
+                    )
+                )
+            except Exception as ws_err:
+                logger.warning("Failed to broadcast pipeline_failed event", session_id=session_id, error=str(ws_err))
+
             raise
 
 

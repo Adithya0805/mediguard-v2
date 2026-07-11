@@ -18,6 +18,8 @@ from app.llm.router import LLMRouter
 from app.rag.retriever import MedicalRetriever
 from app.schemas.agent import AgentState
 from app.utils.logger import get_logger
+from app.utils.websocket_manager import ws_manager
+from app.schemas.websocket import AgentEvent, AgentEventType
 
 logger = get_logger("app.agents.report_agent")
 
@@ -107,6 +109,28 @@ class ReportAgent:
             urgency=urgency_level,
         )
 
+        # Broadcast start event
+        try:
+            await ws_manager.broadcast_to_session(
+                session_id,
+                AgentEvent(
+                    event_type=AgentEventType.AGENT_STARTED,
+                    session_id=session_id,
+                    agent_name="report",
+                    timestamp=datetime.utcnow().isoformat(),
+                    message="Report Agent is compiling report...",
+                    data={
+                        "agent_display_name": "Report Agent",
+                        "agent_icon": "file-text",
+                        "estimated_seconds": 15
+                    }
+                )
+            )
+        except Exception as ws_err:
+            logger.warning("Failed to broadcast agent_started event via websocket", session_id=session_id, error=str(ws_err))
+
+        agent_start_time = datetime.utcnow()
+
         # ── Calculate generation time ─────────────────────────────────────────
         generation_seconds = _calculate_generation_time(pipeline_start_time)
 
@@ -166,6 +190,26 @@ class ReportAgent:
                 rag_sources=len(context_sources),
             )
 
+            # Broadcast completed event
+            duration = (datetime.utcnow() - agent_start_time).seconds
+            try:
+                await ws_manager.broadcast_to_session(
+                    session_id,
+                    AgentEvent(
+                        event_type=AgentEventType.AGENT_COMPLETED,
+                        session_id=session_id,
+                        agent_name="report",
+                        timestamp=datetime.utcnow().isoformat(),
+                        message="Report Agent completed",
+                        data={
+                            "duration_seconds": duration,
+                            "urgency_level": state.get("urgency_level", "medium")
+                        }
+                    )
+                )
+            except Exception as ws_err:
+                logger.warning("Failed to broadcast agent_completed event via websocket", session_id=session_id, error=str(ws_err))
+
         except Exception as exc:
             logger.error("ReportAgent failed", session_id=session_id, error=str(exc))
 
@@ -177,6 +221,26 @@ class ReportAgent:
                 session_id, parsed_intake, urgency_level, completed_agents, generation_seconds
             )
             state["report_generated"] = True   # mark True — partial report is still a report
+
+            # Broadcast failed event
+            duration = (datetime.utcnow() - agent_start_time).seconds
+            try:
+                await ws_manager.broadcast_to_session(
+                    session_id,
+                    AgentEvent(
+                        event_type=AgentEventType.AGENT_FAILED,
+                        session_id=session_id,
+                        agent_name="report",
+                        timestamp=datetime.utcnow().isoformat(),
+                        message=f"Report Agent failed: {str(exc)}",
+                        data={
+                            "duration_seconds": duration,
+                            "error": str(exc)
+                        }
+                    )
+                )
+            except Exception as ws_err:
+                logger.warning("Failed to broadcast agent_failed event via websocket", session_id=session_id, error=str(ws_err))
 
         # ── Update orchestration metadata ────────────────────────────────────
         end_time = datetime.now(timezone.utc).isoformat()

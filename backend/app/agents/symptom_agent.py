@@ -19,6 +19,8 @@ from app.llm.router import LLMRouter
 from app.rag.retriever import MedicalRetriever, format_context
 from app.schemas.agent import AgentState
 from app.utils.logger import get_logger
+from app.utils.websocket_manager import ws_manager
+from app.schemas.websocket import AgentEvent, AgentEventType
 
 logger = get_logger("app.agents.symptom_agent")
 
@@ -39,15 +41,15 @@ Red flags: {red_flags}
 Medical context: {retrieved_context}
 
 Return a JSON object with:
-{{
+{
   "severity": "mild | moderate | severe | critical",
   "body_systems_affected": ["list of body systems"],
-  "symptom_clusters": [{{"cluster_name": "", "symptoms": []}}],
+  "symptom_clusters": [{"cluster_name": "", "symptoms": []}],
   "icd10_categories": ["suggested ICD-10 category codes with names"],
   "triage_recommendation": "immediate | urgent | semi-urgent | routine",
   "clinical_reasoning": "paragraph explaining the analysis",
   "requires_emergency": true/false
-}}
+}
 """
 
 
@@ -78,6 +80,28 @@ class SymptomAgent:
         parsed_intake = state.get("parsed_intake", {})
 
         logger.info("SymptomAgent starting", session_id=session_id)
+
+        # Broadcast start event
+        try:
+            await ws_manager.broadcast_to_session(
+                session_id,
+                AgentEvent(
+                    event_type=AgentEventType.AGENT_STARTED,
+                    session_id=session_id,
+                    agent_name="symptom",
+                    timestamp=datetime.utcnow().isoformat(),
+                    message="Symptom Agent is analyzing...",
+                    data={
+                        "agent_display_name": "Symptom Agent",
+                        "agent_icon": "activity",
+                        "estimated_seconds": 12
+                    }
+                )
+            )
+        except Exception as ws_err:
+            logger.warning("Failed to broadcast agent_started event via websocket", session_id=session_id, error=str(ws_err))
+
+        agent_start_time = datetime.utcnow()
 
         # ── Step 1: RAG retrieval ─────────────────────────────────────────────
         chief_complaint      = state.get("patient_data", {}).get("chief_complaint", "")
@@ -156,6 +180,26 @@ class SymptomAgent:
                 requires_emergency=parsed.get("requires_emergency", False),
             )
 
+            # Broadcast completed event
+            duration = (datetime.utcnow() - agent_start_time).seconds
+            try:
+                await ws_manager.broadcast_to_session(
+                    session_id,
+                    AgentEvent(
+                        event_type=AgentEventType.AGENT_COMPLETED,
+                        session_id=session_id,
+                        agent_name="symptom",
+                        timestamp=datetime.utcnow().isoformat(),
+                        message="Symptom Agent completed",
+                        data={
+                            "duration_seconds": duration,
+                            "symptom_severity": state["symptom_severity"]
+                        }
+                    )
+                )
+            except Exception as ws_err:
+                logger.warning("Failed to broadcast agent_completed event via websocket", session_id=session_id, error=str(ws_err))
+
         except Exception as exc:
             logger.error("SymptomAgent failed", session_id=session_id, error=str(exc))
 
@@ -166,6 +210,26 @@ class SymptomAgent:
             state["symptoms_analysis"]  = _build_fallback_analysis(parsed_intake)
             state["symptom_severity"]   = "unknown"
             state["symptom_categories"] = []
+
+            # Broadcast failed event
+            duration = (datetime.utcnow() - agent_start_time).seconds
+            try:
+                await ws_manager.broadcast_to_session(
+                    session_id,
+                    AgentEvent(
+                        event_type=AgentEventType.AGENT_FAILED,
+                        session_id=session_id,
+                        agent_name="symptom",
+                        timestamp=datetime.utcnow().isoformat(),
+                        message=f"Symptom Agent failed: {str(exc)}",
+                        data={
+                            "duration_seconds": duration,
+                            "error": str(exc)
+                        }
+                    )
+                )
+            except Exception as ws_err:
+                logger.warning("Failed to broadcast agent_failed event via websocket", session_id=session_id, error=str(ws_err))
 
         # ── Update orchestration metadata ────────────────────────────────────
         completed = list(state.get("completed_agents", []))

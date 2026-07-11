@@ -3,23 +3,19 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from '@/hooks/useSession';
+import { useSessionStore } from '@/store/sessionStore';
 import { getAuditTrail, generateReport } from '@/lib/api';
 import { AuditLogEntry } from '@/types';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
 import StatusBadge from '@/components/shared/StatusBadge';
-import UrgencyBadge from '@/components/shared/UrgencyBadge';
+import LiveAgentPipeline from '@/components/patient/LiveAgentPipeline';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  PlayCircle, 
-  ShieldCheck, 
   ChevronDown, 
   ChevronUp, 
-  FileText, 
   Clock, 
   User, 
-  Heart,
-  Server,
   Terminal
 } from 'lucide-react';
 
@@ -28,7 +24,8 @@ export default function SessionDetailPage() {
   const router = useRouter();
   const sessionId = params.sessionId as string;
 
-  const { session, isLoading, isPolling, error } = useSession(sessionId);
+  const { session, isLoading, isPolling, error, refetch } = useSession(sessionId);
+  const stopPolling = useSessionStore((state) => state.stopPolling);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [auditExpanded, setAuditExpanded] = useState(false);
   const [secondsAgo, setSecondsAgo] = useState(0);
@@ -74,6 +71,12 @@ export default function SessionDetailPage() {
     triggerAnalysis();
   }, [sessionId, session]);
 
+  const handlePipelineComplete = async (data: Record<string, any>) => {
+    console.log('[Pipeline Complete] Stopping background polling and refetching session status...');
+    stopPolling();
+    await refetch();
+  };
+
   if (isLoading && !session) {
     return (
       <div className="flex h-[60vh] items-center justify-center">
@@ -98,24 +101,6 @@ export default function SessionDetailPage() {
       </div>
     );
   }
-
-  // MOCK PIPELINE NODES DEFINITIONS
-  const pipelineNodes = [
-    { label: 'Intake Parsing', icon: User },
-    { label: 'Symptom RAG', icon: Server },
-    { label: 'Differential Diagnosis', icon: Heart },
-    { label: 'Pharmacology', icon: PlayCircle },
-    { label: 'Synthesizing', icon: FileText },
-  ];
-
-  // Map simulated active node based on age/status
-  const activeNodeIndex = session.status === 'completed' 
-    ? 5 
-    : session.status === 'failed' 
-    ? 3 
-    : session.status === 'processing' 
-    ? 2 
-    : 0;
 
   return (
     <ErrorBoundary>
@@ -147,98 +132,9 @@ export default function SessionDetailPage() {
           </div>
         </div>
 
-        {/* ─────────────────────────────────────────────────────────────────────────────
-            TRIAGE BANNER / COMPLETED QUICK SUMMARY
-            ───────────────────────────────────────────────────────────────────────────── */}
-        {session.status === 'completed' && (
-          <div className="p-6 rounded-2xl bg-primary/10 border border-primary/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 shadow-[0_0_15px_rgba(13,148,136,0.1)]">
-            <div className="flex flex-col gap-2">
-              <span className="text-[10px] font-mono font-bold tracking-wider text-primary uppercase">CDS Report Ready</span>
-              <h3 className="text-lg font-bold text-text-primary">Acute Coronary Syndrome</h3>
-              <p className="text-xs text-text-secondary max-w-xl leading-relaxed">
-                collrospective reasoning graph resolved ACS candidate as primary diagnostic recommendation with 87% confidence metrics.
-              </p>
-            </div>
-            <div className="flex items-center gap-4 w-full sm:w-auto">
-              <UrgencyBadge urgency="high" />
-              <button
-                onClick={() => router.push(`/report/${session.id}`)}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-primary text-text-primary hover:bg-primary/95 transition-all font-semibold text-sm shadow-[0_0_10px_rgba(13,148,136,0.2)] hover:scale-[1.02]"
-              >
-                <FileText className="h-4.5 w-4.5" />
-                <span>View Full CDS Report</span>
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Live Agent Pipeline */}
+        <LiveAgentPipeline sessionId={sessionId} onComplete={handlePipelineComplete} />
 
-        {session.status === 'failed' && (
-          <div className="p-6 rounded-2xl bg-danger/10 border border-danger/20 flex flex-col gap-3">
-            <h4 className="text-base font-bold text-danger">Pipeline Analysis Interrupted</h4>
-            <p className="text-xs text-text-secondary leading-relaxed">
-              collaborative agents encountered pinecone/embedding indexing faults or connection resets. Triage the patient manually. Please review local logs or contact support.
-            </p>
-            <div className="flex gap-4 mt-2">
-              <button 
-                onClick={() => window.location.reload()}
-                className="px-4 py-2 rounded-lg bg-surface border border-border text-xs font-semibold text-text-primary hover:bg-surface-raised transition-all"
-              >
-                Retry Pipeline run
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ─────────────────────────────────────────────────────────────────────────────
-            LIVE PIPELINE GRAPH STEPS
-            ───────────────────────────────────────────────────────────────────────────── */}
-        {(session.status === 'processing' || session.status === 'pending') && (
-          <div className="p-6 rounded-2xl bg-surface border border-border flex flex-col gap-6">
-            <div className="flex flex-col gap-1">
-              <h4 className="text-sm font-bold text-text-primary">Multi-Agent Workflow Execution</h4>
-              <span className="text-xs text-text-secondary">Tracking active node processing states inside LangGraph supervisions.</span>
-            </div>
-
-            {/* Horizontal Timeline */}
-            <div className="relative flex items-center justify-between mt-4 w-full">
-              {/* Connector line */}
-              <div className="absolute left-6 right-6 h-0.5 bg-slate-800 z-0" />
-              <div 
-                className="absolute left-6 h-0.5 bg-primary z-0 transition-all duration-500" 
-                style={{ width: `${(activeNodeIndex / 4) * 90}%` }}
-              />
-
-              {pipelineNodes.map((node, idx) => {
-                const isCompleted = idx < activeNodeIndex;
-                const isActive = idx === activeNodeIndex;
-                const NodeIcon = node.icon;
-
-                return (
-                  <div key={idx} className="flex flex-col items-center gap-2.5 relative z-10">
-                    <div className={`h-10 w-10 rounded-full border-2 flex items-center justify-center transition-all ${
-                      isCompleted 
-                        ? 'bg-primary border-primary text-text-primary' 
-                        : isActive 
-                        ? 'bg-surface-raised border-primary text-primary scale-110 shadow-[0_0_12px_var(--primary)] animate-pulse' 
-                        : 'bg-surface-raised border-border text-text-muted'
-                    }`}>
-                      {isCompleted ? (
-                        <ShieldCheck className="h-5 w-5" />
-                      ) : (
-                        <NodeIcon className={`h-5 w-5 ${isActive ? 'animate-spin-slow' : ''}`} />
-                      )}
-                    </div>
-                    <span className={`text-[10px] font-semibold tracking-wide ${
-                      isActive ? 'text-primary' : isCompleted ? 'text-text-primary' : 'text-text-muted'
-                    }`}>
-                      {node.label}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* ─────────────────────────────────────────────────────────────────────────────
             PATIENT INTAKE SUMMARY CARD
