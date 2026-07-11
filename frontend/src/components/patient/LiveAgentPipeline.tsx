@@ -209,10 +209,10 @@ export default function LiveAgentPipeline({ sessionId, onComplete }: LiveAgentPi
 
           // Connection line to next node
           const showLine = idx < AGENTS.length - 1;
-          const nextAgent = AGENTS[idx + 1];
-          const isNextCompleted = completedAgents.includes(nextAgent.id);
-          const isLineCompleted = isCompleted && (isNextCompleted || (isPipelineComplete && completedAgents.includes(agent.id)));
-          const isLineActive = isCompleted && currentAgent === nextAgent.id;
+          const nextAgent = showLine ? AGENTS[idx + 1] : null;
+          const isNextCompleted = nextAgent ? completedAgents.includes(nextAgent.id) : false;
+          const isLineCompleted = nextAgent ? (isCompleted && (isNextCompleted || (isPipelineComplete && completedAgents.includes(agent.id)))) : false;
+          const isLineActive = nextAgent ? (isCompleted && currentAgent === nextAgent.id) : false;
 
           return (
             <React.Fragment key={agent.id}>
