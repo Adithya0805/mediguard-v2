@@ -30,6 +30,9 @@ class Settings(BaseSettings):
                 self.ALLOWED_ORIGINS = [
                     # Primary Vercel production domain
                     "https://mediguard-v2.vercel.app",
+                    # User Vercel project namespaces (preview & production deployment templates)
+                    "https://mediguard-v2-git-main-adithyaadhi0805-8410s-projects.vercel.app",
+                    "https://mediguard-v2-adithyaadhi0805-8410s-projects.vercel.app",
                     # Vercel preview deployment wildcard (git-branch previews)
                     "https://mediguard-v2-git-main-chandrus-projects.vercel.app",
                     # Any *.vercel.app subdomain (Vercel preview deployments)
