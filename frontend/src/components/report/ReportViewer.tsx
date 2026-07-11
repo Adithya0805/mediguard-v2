@@ -34,6 +34,17 @@ export default function ReportViewer({ report, session }: ReportViewerProps) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSynced, setIsSynced] = useState(false);
 
+  // Destructure with default values to safeguard against undefined properties
+  const {
+    differential_diagnosis = [],
+    recommended_tests = [],
+    drug_interactions_found = [],
+    urgency_level = 'medium',
+    reviewed_by_agent = 'MediGuard AI',
+    fhir_bundle = null,
+    clinical_summary = '',
+  } = report || {};
+
   useEffect(() => {
     const fetchLogs = async () => {
       try {
@@ -85,7 +96,7 @@ export default function ReportViewer({ report, session }: ReportViewerProps) {
     });
   };
 
-  const primary = report.differential_diagnosis.find((d) => d.rank === 1) || {
+  const primary = differential_diagnosis.find((d) => d.rank === 1) || {
     diagnosis: 'Acute Coronary Syndrome',
     icd10_code: 'I24.9',
     confidence: 0.87,
@@ -111,13 +122,13 @@ export default function ReportViewer({ report, session }: ReportViewerProps) {
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-3">
             <span className="text-[10px] font-mono font-bold tracking-wider text-primary uppercase">CDSS Output Compiled</span>
-            <UrgencyBadge urgency={report.urgency_level} />
+            <UrgencyBadge urgency={urgency_level} />
           </div>
           <h2 className="font-sans font-bold text-xl tracking-tight text-text-primary">
             Clinical Support Report for {session.patient_name}
           </h2>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[10px] text-text-secondary uppercase">
-            <span>Reviewed by: {report.reviewed_by_agent}</span>
+            <span>Reviewed by: {reviewed_by_agent}</span>
             <span>•</span>
             <span>RAG Sources Mapped</span>
           </div>
@@ -230,7 +241,7 @@ export default function ReportViewer({ report, session }: ReportViewerProps) {
                 <div className="flex flex-col gap-2 border-b border-border/40 pb-4">
                   <h4 className="text-xs font-mono font-bold text-primary uppercase tracking-wider">Executive Summary</h4>
                   <p className="text-sm text-text-primary leading-relaxed font-medium">
-                    {report.clinical_summary || 'Clinical summary completed.'}
+                    {clinical_summary || 'Clinical summary completed.'}
                   </p>
                 </div>
 
@@ -285,7 +296,7 @@ export default function ReportViewer({ report, session }: ReportViewerProps) {
         {activeTab === 'ddx' && (
           <div className="w-full">
             <DDxTable 
-              ddxList={report.differential_diagnosis} 
+              ddxList={differential_diagnosis} 
               differentialSummary="ACS is the primary concern with 87% confidence. PE and hypertensive crisis are secondary differentials requiring workup to exclude."
             />
           </div>
@@ -299,7 +310,7 @@ export default function ReportViewer({ report, session }: ReportViewerProps) {
               <h3 className="font-sans font-bold text-base text-text-primary tracking-wide">Recommended Diagnostic Workup</h3>
               
               <div className="flex flex-col gap-4">
-                {report.recommended_tests.map((test, idx) => (
+                {recommended_tests.map((test, idx) => (
                   <div key={idx} className="flex items-start gap-3 text-xs border-b border-border/40 pb-3">
                     <input 
                       type="checkbox" 
@@ -335,10 +346,10 @@ export default function ReportViewer({ report, session }: ReportViewerProps) {
         {activeTab === 'meds' && (
           <div className="w-full">
             <DrugInteractionCard
-              interactions={report.drug_interactions_found}
+              interactions={drug_interactions_found}
               allergies={session.allergies}
               contraindications={['ACS contraindication with severe comorbid interactions check']}
-              medicationNotes={report.clinical_summary}
+              medicationNotes={clinical_summary}
             />
           </div>
         )}
@@ -346,7 +357,7 @@ export default function ReportViewer({ report, session }: ReportViewerProps) {
         {activeTab === 'fhir' && (
           <div className="flex flex-col gap-8 w-full">
             <FHIRViewer 
-              fhirBundle={report.fhir_bundle} 
+              fhirBundle={fhir_bundle} 
               sessionId={session.id}
             />
 

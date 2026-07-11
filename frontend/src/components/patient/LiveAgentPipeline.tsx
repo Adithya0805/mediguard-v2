@@ -79,15 +79,15 @@ function CountdownTimer({ seconds }: { seconds: number }) {
 export default function LiveAgentPipeline({ sessionId, initialStatus, onComplete }: LiveAgentPipelineProps) {
   const router = useRouter();
   const {
-    isConnected,
-    isPipelineRunning,
-    isPipelineComplete,
-    events,
-    currentAgent,
-    completedAgents,
-    failedAgents,
-    pipelineData,
-    error,
+    isConnected = false,
+    isPipelineRunning = false,
+    isPipelineComplete = false,
+    events = [],
+    currentAgent = null,
+    completedAgents = [],
+    failedAgents = [],
+    pipelineData = {},
+    error = null,
     reconnect
   } = useAgentStream(sessionId, initialStatus);
 
