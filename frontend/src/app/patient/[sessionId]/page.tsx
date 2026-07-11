@@ -133,7 +133,11 @@ export default function SessionDetailPage() {
         </div>
 
         {/* Live Agent Pipeline */}
-        <LiveAgentPipeline sessionId={sessionId} onComplete={handlePipelineComplete} />
+        <LiveAgentPipeline 
+          sessionId={sessionId} 
+          initialStatus={session.status} 
+          onComplete={handlePipelineComplete} 
+        />
 
 
         {/* ─────────────────────────────────────────────────────────────────────────────

@@ -20,6 +20,7 @@ import UrgencyBadge from '@/components/shared/UrgencyBadge';
 
 interface LiveAgentPipelineProps {
   sessionId: string;
+  initialStatus?: string;
   onComplete?: (data: Record<string, any>) => void;
 }
 
@@ -75,7 +76,7 @@ function CountdownTimer({ seconds }: { seconds: number }) {
   return <span className="text-[10px] font-mono opacity-80">~{timeLeft}s left</span>;
 }
 
-export default function LiveAgentPipeline({ sessionId, onComplete }: LiveAgentPipelineProps) {
+export default function LiveAgentPipeline({ sessionId, initialStatus, onComplete }: LiveAgentPipelineProps) {
   const router = useRouter();
   const {
     isConnected,
@@ -88,7 +89,7 @@ export default function LiveAgentPipeline({ sessionId, onComplete }: LiveAgentPi
     pipelineData,
     error,
     reconnect
-  } = useAgentStream(sessionId);
+  } = useAgentStream(sessionId, initialStatus);
 
   // Trigger parent callback on completion
   useEffect(() => {
