@@ -12,7 +12,7 @@ import json
 from urllib.error import HTTPError, URLError
 
 # Production Base URLs
-BACKEND_URL = "https://mediguard-backend.up.railway.app"
+BACKEND_URL = "https://mediguard-v2.onrender.com"
 VALID_API_KEY = "mediguard_v2_secret_api_key_override"
 
 # Beautiful Terminal Colors & Styles

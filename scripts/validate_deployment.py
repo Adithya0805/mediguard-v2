@@ -12,7 +12,7 @@ import json
 from urllib.error import HTTPError, URLError
 
 # Production Endpoint Configurations
-BACKEND_URL = "https://mediguard-backend.up.railway.app"
+BACKEND_URL = "https://mediguard-v2.onrender.com"
 FRONTEND_URL = "https://mediguard-v2.vercel.app"
 
 # Default API Key for validation queries (should map to target production secret)

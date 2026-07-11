@@ -34,8 +34,8 @@ class Settings(BaseSettings):
                     "https://mediguard-v2-git-main-chandrus-projects.vercel.app",
                     # Any *.vercel.app subdomain (Vercel preview deployments)
                     "https://mediguard-v2-chandrus-projects.vercel.app",
-                    # Allow the Railway domain itself for inter-service calls
-                    "https://mediguard-v2-production.up.railway.app",
+                    # Allow the Render domain itself for inter-service calls
+                    "https://mediguard-v2.onrender.com",
                 ]
             else:
                 self.ALLOWED_ORIGINS = ["http://localhost:3000", "http://localhost:3001"]

@@ -71,26 +71,24 @@ jobs:
     - name: Compile Next.js Build
       run: npm run build
       env:
-        NEXT_PUBLIC_API_URL: https://mediguard-v2-production.up.railway.app
+        NEXT_PUBLIC_API_URL: https://mediguard-v2.onrender.com
         NEXT_PUBLIC_APP_NAME: "MediGuard V2"
         NEXT_PUBLIC_ENVIRONMENT: production
 
-  # ── JOB 3: Deploy Backend to Railway ───────────────────────────────────────
+  # ── JOB 3: Deploy Backend to Render ────────────────────────────────────────
   deploy-backend:
     needs: [backend-test]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
-
-    - name: Install Railway CLI
-      run: npm install -g @railway/cli
-
-    - name: Trigger Railway Production Deploy
-      run: railway up --service mediguard-v2 --detach
-      env:
-        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+    - name: Trigger Render Production Deploy
+      run: |
+        if [ -n "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" ]; then
+          echo "Triggering Render deploy hook..."
+          curl -sS -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+        else
+          echo "RENDER_DEPLOY_HOOK_URL secret is not set. Skipping manual hook trigger since Render auto-deploy is active."
+        fi
 
 
 
