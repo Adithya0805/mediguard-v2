@@ -104,6 +104,7 @@ async def run_pipeline_background(
             "primary_diagnosis": report_data.get("primary_diagnosis", {}),
             "contraindications": final_state.get("contraindications", report_data.get("contraindications", [])),
             "medication_notes": final_state.get("medication_notes", report_data.get("medication_notes", "")),
+            "fda_data_used": final_state.get("fda_data_used", False),
             "report_metadata": {
                 "agents_used": completed_agents,
                 "generation_time_seconds": final_state.get("report_metadata", {}).get("generation_time_seconds", 15.0),

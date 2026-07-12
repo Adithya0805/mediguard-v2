@@ -44,6 +44,7 @@ class AgentState(TypedDict):
     drug_interactions:      List[Dict[str, Any]]  # Detected drug interactions
     contraindications:      List[str]             # Explicit contraindication strings
     medication_safe:        bool                  # Overall medication safety flag
+    fda_data_used:          bool                  # True if OpenFDA real data was used
 
     # ── Report agent output ──────────────────────────────────────────────────
     report:                 Dict[str, Any]  # Full synthesised clinical report dict
@@ -103,6 +104,7 @@ def build_initial_state(session_id: str, patient_data: Dict[str, Any]) -> AgentS
         drug_interactions=[],
         contraindications=[],
         medication_safe=True,
+        fda_data_used=False,
 
         # Report
         report={},

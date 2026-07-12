@@ -9,13 +9,15 @@ interface DrugInteractionCardProps {
   allergies?: string[];
   contraindications?: string[];
   medicationNotes?: string;
+  fda_data_used?: boolean;
 }
 
 export default function DrugInteractionCard({
   interactions,
   allergies = [],
   contraindications = [],
-  medicationNotes
+  medicationNotes,
+  fda_data_used = false
 }: DrugInteractionCardProps) {
   
   // Sort interactions: contraindicated -> severe -> moderate -> mild
@@ -44,6 +46,13 @@ export default function DrugInteractionCard({
   return (
     <div className="flex flex-col gap-6 text-left w-full">
       
+      {/* FDA Data Info Banner */}
+      {fda_data_used && (
+        <div className="p-3 px-4 rounded-xl bg-cyan-500/10 border border-cyan-500/25 text-xs text-cyan-400 font-semibold flex items-center gap-2">
+          <span>ⓘ Drug interactions verified against FDA drug label database</span>
+        </div>
+      )}
+
       {/* ─────────────────────────────────────────────────────────────────────────────
           NO INTERACTIONS FOUND: GREEN SAFE BANNER
           ───────────────────────────────────────────────────────────────────────────── */}
@@ -72,7 +81,7 @@ export default function DrugInteractionCard({
           {/* Allergy warnings */}
           {allergies.length > 0 && (
             <div className="p-5 rounded-2xl bg-red-950/20 border border-red-900/30 flex flex-col gap-3">
-              <div className="flex items-center gap-2 text-xs font-mono font-bold text-danger uppercase tracking-wider">
+               <div className="flex items-center gap-2 text-xs font-mono font-bold text-danger uppercase tracking-wider">
                 <AlertTriangle className="h-4.5 w-4.5 text-danger animate-pulse" />
                 <span>Drug-Allergy Conflict Hazard</span>
               </div>
@@ -120,15 +129,26 @@ export default function DrugInteractionCard({
                     className="p-5 rounded-2xl bg-surface border border-border flex flex-col gap-4 shadow-md hover:border-primary/20 transition-colors"
                   >
                     {/* Header */}
-                    <div className="flex items-center justify-between border-b border-border/60 pb-3">
+                    <div className="flex items-center justify-between border-b border-border/60 pb-3 gap-2">
                       <span className="text-xs font-mono font-extrabold text-text-primary">
                         {item.drug_a} ↔ {item.drug_b}
                       </span>
-                      <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase border ${
-                        severityColorMap[item.severity] || severityColorMap.mild
-                      }`}>
-                        {item.severity}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {item.fda_cited ? (
+                          <span className="px-2 py-0.5 rounded text-[8px] font-mono font-extrabold bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                            📋 FDA Verified
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded text-[8px] font-mono font-extrabold bg-slate-800 text-text-muted border border-border">
+                            AI Analysis
+                          </span>
+                        )}
+                        <span className={`px-2 py-0.5 rounded text-[8px] font-mono font-bold uppercase border ${
+                          severityColorMap[item.severity] || severityColorMap.mild
+                        }`}>
+                          {item.severity}
+                        </span>
+                      </div>
                     </div>
 
                     {/* Details */}
@@ -136,7 +156,7 @@ export default function DrugInteractionCard({
                       <div className="flex flex-col gap-0.5">
                         <span className="text-[9px] font-mono font-bold uppercase text-text-secondary">Pathology Mechanism</span>
                         <p className="text-xs text-text-primary leading-relaxed">
-                          Competitive pharmacokinetics increase drug serum exposure ratios.
+                          {item.mechanism || 'Competitive pharmacokinetics increase drug serum exposure ratios.'}
                         </p>
                       </div>
                       <div className="flex flex-col gap-0.5">
@@ -145,6 +165,11 @@ export default function DrugInteractionCard({
                           {item.management}
                         </p>
                       </div>
+                      {item.fda_cited && item.fda_source && (
+                        <div className="text-[9px] text-text-secondary/70 mt-1 italic font-sans">
+                          Source: {item.fda_source}
+                        </div>
+                      )}
                     </div>
 
                   </div>

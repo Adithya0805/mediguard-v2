@@ -52,8 +52,22 @@ async def lifespan(app: FastAPI):
             "Startup Supabase connectivity warning - Database checks will fall back to stubs.",
             error=str(e)
         )
+
+    # 2. Test OpenFDA Client connectivity on startup
+    logger.info("Verifying OpenFDA API connectivity...")
+    try:
+        from app.services.openfda_client import fda_client
+        logger.info("OpenFDA client initialized")
+        # Run a quick test
+        warnings = await fda_client.get_drug_warnings("aspirin")
+        if warnings:
+            logger.info("OpenFDA API: REACHABLE")
+        else:
+            logger.warning("OpenFDA API unreachable (returned empty) — drug agent will use LLM-only mode")
+    except Exception as e:
+        logger.warning("OpenFDA API unreachable — drug agent will use LLM-only mode", error=str(e))
         
-    # 2. Log all registered routes at DEBUG level
+    # 3. Log all registered routes at DEBUG level
     logger.debug("Registering clinical endpoint routers...")
     for route in app.routes:
         methods = getattr(route, "methods", set())
@@ -61,6 +75,15 @@ async def lifespan(app: FastAPI):
         
     yield
     
+    # Clean up OpenFDA Client on shutdown
+    logger.info("Closing OpenFDA client session...")
+    try:
+        from app.services.openfda_client import fda_client
+        await fda_client.close()
+        logger.info("OpenFDA client closed")
+    except Exception as e:
+        logger.warning("Error closing OpenFDA client session", error=str(e))
+
     logger.info("Shutting down MediGuard V2 Application... Graceful shutdown complete.")
 
 

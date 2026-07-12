@@ -20,8 +20,8 @@ from app.config import settings
 
 TEST_PATIENT = {
     "patient_name": "Priya Sharma",
-    "age": 38,
-    "gender": "female",
+    "patient_age": 38,
+    "patient_gender": "female",
     "chief_complaint": "Severe headache for 2 days with visual disturbances and high blood pressure",
     "symptoms": ["severe headache", "visual disturbances", "blurred vision", "nausea", "neck stiffness"],
     "medical_history": ["hypertension", "migraines"],
@@ -39,10 +39,7 @@ TEST_PATIENT = {
 
 def check_process_status(proc):
     if proc.poll() is not None:
-        stdout, stderr = proc.communicate()
         print(f"Uvicorn subprocess exited prematurely! Code: {proc.returncode}")
-        print(f"Stdout:\n{stdout.decode('utf-8', errors='ignore')}")
-        print(f"Stderr:\n{stderr.decode('utf-8', errors='ignore')}")
         return False
     return True
 
@@ -55,11 +52,12 @@ def run_e2e_test():
     
     # 1. Start FastAPI server in subprocess
     print("\n[Step 1] Starting FastAPI Uvicorn Server on port 8000...")
+    log_file = open(os.path.join(backend_root, "uvicorn_e2e.log"), "w", encoding="utf-8")
     proc = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000"],
         cwd=backend_root,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
+        stdout=log_file,
+        stderr=subprocess.STDOUT
     )
     
     server_online = False
@@ -70,7 +68,7 @@ def run_e2e_test():
         print("\n[Step 2] Awaiting server online health indicators...")
         start_wait = time.perf_counter()
         
-        for attempt in range(1, 31):
+        for attempt in range(1, 151):
             if proc.poll() is not None:
                 print("  [FAIL] FastAPI Uvicorn process failed to bind or run.")
                 check_process_status(proc)
@@ -103,7 +101,7 @@ def run_e2e_test():
                 "http://127.0.0.1:8000/api/v1/patient/session",
                 json=TEST_PATIENT,
                 headers=headers,
-                timeout=5.0
+                timeout=30.0
             )
             
             if res.status_code != 201:
@@ -114,7 +112,7 @@ def run_e2e_test():
             session_id = res.json().get("session_id")
             latency = (time.perf_counter() - start_time) * 1000
             print(f"  [PASS] Intake session created. Session ID: {session_id} ({latency:.2f}ms)")
-
+ 
         # 4. POST /report/generate
         print(f"\n[Step 4] Triggering LangGraph Multi-Agent pipeline analysis...")
         start_time = time.perf_counter()
@@ -124,7 +122,7 @@ def run_e2e_test():
                 "http://127.0.0.1:8000/api/v1/report/generate",
                 json={"session_id": session_id},
                 headers=headers,
-                timeout=5.0
+                timeout=30.0
             )
             
             if res.status_code != 202:
@@ -147,7 +145,7 @@ def run_e2e_test():
             elapsed += poll_interval
             
             # Query session status
-            with httpx.Client() as client:
+            with httpx.Client(timeout=30.0) as client:
                 # 1. Fetch Session Status
                 sess_res = client.get(f"http://127.0.0.1:8000/api/v1/patient/session/{session_id}", headers=headers)
                 if sess_res.status_code != 200:
@@ -185,7 +183,7 @@ def run_e2e_test():
         start_time = time.perf_counter()
         
         with httpx.Client() as client:
-            res = client.get(f"http://127.0.0.1:8000/api/v1/report/{session_id}", headers=headers)
+            res = client.get(f"http://127.0.0.1:8000/api/v1/report/{session_id}", headers=headers, timeout=30.0)
             if res.status_code != 200:
                 print(f"  [FAIL] Could not fetch report. Status: {res.status_code}")
                 return False
@@ -246,6 +244,11 @@ def run_e2e_test():
             except Exception as e:
                 print(f"  [WARNING] Force killing server: {str(e)}")
                 proc.kill()
+        if 'log_file' in locals() and log_file:
+            try:
+                log_file.close()
+            except Exception:
+                pass
 
 if __name__ == "__main__":
     result = run_e2e_test()

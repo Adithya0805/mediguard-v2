@@ -57,6 +57,10 @@ export interface DrugInteraction {
   drug_b: string;
   severity: 'mild' | 'moderate' | 'severe' | 'contraindicated';
   management: string;
+  mechanism?: string;
+  clinical_effect?: string;
+  fda_cited?: boolean;
+  fda_source?: string;
 }
 
 export interface ClinicalReport {

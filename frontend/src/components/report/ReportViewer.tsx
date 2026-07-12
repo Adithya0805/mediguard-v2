@@ -350,6 +350,7 @@ export default function ReportViewer({ report, session }: ReportViewerProps) {
               allergies={session.allergies}
               contraindications={['ACS contraindication with severe comorbid interactions check']}
               medicationNotes={clinical_summary}
+              fda_data_used={!!(fhir_bundle && fhir_bundle.fda_data_used)}
             />
           </div>
         )}
