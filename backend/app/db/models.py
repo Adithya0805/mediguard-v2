@@ -21,6 +21,7 @@ class PatientSession(BaseModel):
         description="Patient vitals mapping (bp, heart_rate, temperature, spo2, weight, height)"
     )
     status: str = Field(default="pending", description="Orchestration workflow status (pending, processing, completed, failed)")
+    institution_id: Optional[UUID] = Field(default=None, description="Optional tenant institution mapping")
 
 
 class AgentRun(BaseModel):
@@ -66,3 +67,33 @@ class AuditLog(BaseModel):
     action: str = Field(..., description="Action type performed (e.g. session_created, agent_started, report_generated)")
     actor: str = Field(..., description="Identifier of systemic entity executing the action (system / agent name)")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Detailed tracking context payload")
+
+
+class Institution(BaseModel):
+    """Pydantic representation of the institutions multi-tenant table."""
+    id: UUID = Field(default_factory=uuid4, description="Primary Key, unique institution ID")
+    created_at: datetime = Field(default_factory=datetime.utcnow, description="Registration timestamp")
+    institution_code: str = Field(..., description="Unique human-readable institution identifier")
+    institution_name: str = Field(..., description="Full legal name of the institution")
+    institution_type: str = Field(default="hospital", description="Type: hospital, clinic, lab, etc.")
+    city: Optional[str] = Field(default=None, description="City of institution location")
+    state: Optional[str] = Field(default=None, description="State/Province of institution location")
+    is_active: bool = Field(default=True, description="Whether institution access is currently active")
+    max_staff_accounts: int = Field(default=50, description="Maximum allowed staff accounts for this institution")
+
+
+class ClinicalStaff(BaseModel):
+    """Pydantic representation of the clinical_staff authentication table."""
+    id: UUID = Field(default_factory=uuid4, description="Primary Key, unique staff member ID")
+    created_at: datetime = Field(default_factory=datetime.utcnow, description="Account creation timestamp")
+    email: str = Field(..., description="Unique institutional email address")
+    full_name: str = Field(..., description="Full legal name of the clinical staff member")
+    role: str = Field(..., description="Clinical role: physician, nurse, pharmacist, admin, superadmin")
+    specialization: Optional[str] = Field(default=None, description="Medical specialization area")
+    institution_id: UUID = Field(..., description="Foreign key to institutions table")
+    institution_code: str = Field(..., description="Denormalized institution code for fast lookups")
+    hashed_key_phrase: str = Field(..., description="bcrypt-hashed authentication key phrase")
+    is_active: bool = Field(default=True, description="Whether this account is currently active")
+    last_login_at: Optional[datetime] = Field(default=None, description="Timestamp of most recent login")
+    login_count: int = Field(default=0, description="Total number of successful logins")
+    employee_id: Optional[str] = Field(default=None, description="Internal hospital employee ID")

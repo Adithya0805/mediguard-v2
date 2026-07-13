@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
+from app.config import settings
 from app.utils.logger import get_logger
 
 logger = get_logger("app.middleware.rate_limiter")
@@ -25,8 +26,9 @@ _strict_windows:  Dict[str, Deque[float]] = defaultdict(deque)
 
 # Rate limit configuration
 _WINDOW_SECONDS  = 60       # 1 minute window
-_DEFAULT_LIMIT   = 60       # requests per window per IP
-_STRICT_LIMIT    = 10       # for expensive analysis routes
+is_dev = settings.APP_ENV.lower() == "development"
+_DEFAULT_LIMIT   = 600 if is_dev else 60       # Relax limits in dev mode (600 req/min)
+_STRICT_LIMIT    = 100 if is_dev else 10       # Relax strict limits in dev mode (100 req/min)
 
 # Routes that receive strict limiting (substring match)
 _STRICT_ROUTES = ["/report/generate", "/report/analyze"]

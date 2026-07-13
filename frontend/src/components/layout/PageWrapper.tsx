@@ -16,20 +16,20 @@ export default function PageWrapper({ children }: PageWrapperProps) {
   const pathname = usePathname();
   const router = useRouter();
   const sidebarOpen = useUiStore((state) => state.sidebarOpen);
-  const checkAuth = useAuthStore((state) => state.checkAuth);
+  const loadFromStorage = useAuthStore((state) => state.loadFromStorage);
 
   const isAuthOrLanding = pathname === '/login' || pathname === '/';
 
   React.useEffect(() => {
     if (!isAuthOrLanding) {
-      const hasToken = localStorage.getItem('medi_token');
+      const hasToken = localStorage.getItem('mediguard_clinical_token');
       if (!hasToken) {
         router.push('/login');
       } else {
-        checkAuth();
+        loadFromStorage();
       }
     }
-  }, [pathname, isAuthOrLanding, checkAuth, router]);
+  }, [pathname, isAuthOrLanding, loadFromStorage, router]);
 
   if (isAuthOrLanding) {
     return (

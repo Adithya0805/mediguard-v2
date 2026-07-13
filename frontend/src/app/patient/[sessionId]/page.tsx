@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from '@/hooks/useSession';
 import { useSessionStore } from '@/store/sessionStore';
@@ -71,11 +71,11 @@ export default function SessionDetailPage() {
     triggerAnalysis();
   }, [sessionId, session]);
 
-  const handlePipelineComplete = async (data: Record<string, any>) => {
+  const handlePipelineComplete = useCallback(async (data: Record<string, any>) => {
     console.log('[Pipeline Complete] Stopping background polling and refetching session status...');
     stopPolling();
     await refetch();
-  };
+  }, [stopPolling, refetch]);
 
   if (isLoading && !session) {
     return (

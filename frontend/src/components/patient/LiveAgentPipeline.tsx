@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAgentStream } from '@/hooks/useAgentStream';
 import { 
@@ -91,9 +91,12 @@ export default function LiveAgentPipeline({ sessionId, initialStatus, onComplete
     reconnect
   } = useAgentStream(sessionId, initialStatus);
 
+  const completedTriggeredRef = useRef(false);
+
   // Trigger parent callback on completion
   useEffect(() => {
-    if (isPipelineComplete && onComplete) {
+    if (isPipelineComplete && onComplete && !completedTriggeredRef.current) {
+      completedTriggeredRef.current = true;
       onComplete(pipelineData);
     }
   }, [isPipelineComplete, pipelineData, onComplete]);

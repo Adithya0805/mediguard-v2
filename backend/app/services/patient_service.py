@@ -1,6 +1,6 @@
 from datetime import datetime
 from uuid import UUID, uuid4
-from typing import List
+from typing import List, Optional
 from supabase import Client
 from app.db.models import PatientSession
 from app.schemas.patient import PatientInput
@@ -18,7 +18,7 @@ class PatientService:
         self.db = db
         self.audit = audit
 
-    async def create_session(self, patient_input: PatientInput, actor: str = "system") -> PatientSession:
+    async def create_session(self, patient_input: PatientInput, actor: str = "system", institution_id: Optional[str] = None) -> PatientSession:
         """Constructs a new clinical intake tracking session record in the DB."""
         session_id = uuid4()
         created_at = datetime.utcnow().isoformat()
@@ -38,6 +38,8 @@ class PatientService:
             "vitals": patient_input.vitals,
             "status": "pending"
         }
+        if institution_id:
+            session_data["institution_id"] = str(institution_id)
         
         logger.info(
             "Creating new patient session record",
@@ -129,13 +131,14 @@ class PatientService:
             logger.error("Database status update transaction fail", session_id=session_id, error=str(e))
             raise DatabaseException(f"Failed to update session status workflow labels: {str(e)}")
 
-    async def list_sessions(self, limit: int = 20, offset: int = 0) -> List[PatientSession]:
+    async def list_sessions(self, limit: int = 20, offset: int = 0, institution_id: Optional[str] = None) -> List[PatientSession]:
         """Returns a paginated list of patient session history records ordered DESC by ingestion date."""
-        logger.info("Listing paginated history records", limit=limit, offset=offset)
+        logger.info("Listing paginated history records", limit=limit, offset=offset, institution_id=institution_id)
         try:
-            response = self.db.table("patient_sessions")\
-                .select("*")\
-                .order("created_at", desc=True)\
+            query = self.db.table("patient_sessions").select("*")
+            if institution_id:
+                query = query.eq("institution_id", str(institution_id))
+            response = query.order("created_at", desc=True)\
                 .range(offset, offset + limit - 1)\
                 .execute()
                 

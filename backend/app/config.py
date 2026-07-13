@@ -78,3 +78,7 @@ def get_settings() -> Settings:
 
 # Export a default settings instance
 settings = get_settings()
+
+
+# Convenience alias so both settings.JWT_SECRET_KEY and settings.SECRET_KEY work
+Settings.JWT_SECRET_KEY = property(lambda self: self.SECRET_KEY)  # type: ignore[attr-defined]

@@ -31,7 +31,7 @@ _SYSTEM_PROMPT = (
 # ── User prompt template ──────────────────────────────────────────────────────
 _USER_PROMPT_TEMPLATE = """\
 Parse this patient intake and return a JSON object with:
-{
+{{
   "patient_summary": "2-3 sentence clinical summary",
   "normalized_symptoms": ["list of symptoms in clinical terminology"],
   "symptom_onset": "acute / subacute / chronic",
@@ -40,7 +40,7 @@ Parse this patient intake and return a JSON object with:
   "relevant_medications": ["medications relevant to symptoms"],
   "red_flags": ["any immediately concerning symptoms"],
   "intake_confidence": 0.0-1.0
-}
+}}
 
 Patient data:
 {patient_data}

@@ -7,11 +7,11 @@ GET  /report/{id}/audit → returns HIPAA audit trail for the session
 """
 import asyncio
 from uuid import UUID
-from fastapi import APIRouter, BackgroundTasks, Depends, status
+from fastapi import APIRouter, BackgroundTasks, Depends, status, HTTPException
 from fastapi.responses import JSONResponse, RedirectResponse
 
 from supabase import Client
-from app.dependencies import get_db, verify_clinical_auth
+from app.dependencies import get_db, get_current_staff, require_physician, TokenData
 from app.schemas.report import ReportRequest, ClinicalReportResponse
 from app.services.patient_service import PatientService
 from app.services.report_service import ReportService
@@ -20,6 +20,22 @@ from app.utils.logger import get_logger
 
 logger = get_logger("app.api.v1.report")
 router = APIRouter()
+
+
+def check_session_institution(session, current_staff: TokenData) -> None:
+    """Enforces that the session's institution matches the clinician's current tenant."""
+    if session.institution_id and str(session.institution_id) != str(current_staff.institution_id):
+        logger.warning(
+            "Unauthorized session action blocked",
+            session_id=session.id,
+            staff_id=current_staff.staff_id,
+            staff_institution=current_staff.institution_id,
+            session_institution=session.institution_id
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. Session belongs to a different institution."
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -177,17 +193,15 @@ async def generate_report(
     request: ReportRequest,
     background_tasks: BackgroundTasks,
     db: Client = Depends(get_db),
-    actor: dict = Depends(verify_clinical_auth),
+    current_staff: TokenData = Depends(require_physician),
 ):
     """
-    Trigger the multi-agent CDSS analysis pipeline for a patient session.
-
-    Immediately returns 202 Accepted. The pipeline runs in the background.
-    Poll GET /report/{session_id} to check for completion.
+    Triggers the asynchronous multi-agent clinical decision support pipeline.
     """
     logger.info(
-        "Received request to trigger report generation",
+        "Received request to trigger clinical pipeline report generation",
         session_id=request.session_id,
+        staff_id=current_staff.staff_id
     )
 
     audit_service  = AuditService(db)
@@ -195,7 +209,10 @@ async def generate_report(
     report_service = ReportService(db, audit_service)
 
     # 1. Validate patient session exists
-    session = await patient_service.get_session(request.session_id, actor=actor.get("username", "system"))
+    session = await patient_service.get_session(request.session_id, actor=current_staff.staff_id)
+    
+    # Enforce institutional boundary
+    check_session_institution(session, current_staff)
 
     # 2. Short-circuit if already completed
     if session.status == "completed":
@@ -267,7 +284,7 @@ async def generate_report(
 async def get_report(
     session_id: UUID,
     db: Client = Depends(get_db),
-    actor: dict = Depends(verify_clinical_auth),
+    current_staff: TokenData = Depends(get_current_staff),
 ):
     """
     Poll report completion status.
@@ -278,6 +295,7 @@ async def get_report(
     logger.info(
         "Received request to retrieve clinical report results",
         session_id=session_id,
+        staff_id=current_staff.staff_id
     )
 
     audit_service  = AuditService(db)
@@ -285,7 +303,10 @@ async def get_report(
     report_service = ReportService(db, audit_service)
 
     # Check session status first — fail-fast if not ready
-    session = await patient_service.get_session(session_id, actor=actor.get("username", "system"))
+    session = await patient_service.get_session(session_id, actor=current_staff.staff_id)
+    
+    # Enforce institutional boundary
+    check_session_institution(session, current_staff)
 
     if session.status == "processing":
         return JSONResponse(
@@ -315,7 +336,7 @@ async def get_report(
 async def get_report_audit(
     session_id: UUID,
     db: Client = Depends(get_db),
-    actor: dict = Depends(verify_clinical_auth),
+    current_staff: TokenData = Depends(get_current_staff),
 ):
     """
     Returns the complete HIPAA action audit trail associated with the session.
@@ -323,13 +344,17 @@ async def get_report_audit(
     logger.info(
         "Received request to retrieve clinical session audit log trails",
         session_id=session_id,
+        staff_id=current_staff.staff_id
     )
 
     audit_service  = AuditService(db)
     patient_service = PatientService(db, audit_service)
 
     # Validate session exists first
-    await patient_service.get_session(session_id, actor=actor.get("username", "system"))
+    session = await patient_service.get_session(session_id, actor=current_staff.staff_id)
+    
+    # Enforce institutional boundary
+    check_session_institution(session, current_staff)
 
     audit_trail = await audit_service.get_session_audit_trail(session_id)
     return audit_trail
@@ -354,14 +379,21 @@ def _extract_tests_from_ddx(ddx_list: list) -> list:
 async def get_report_pdf(
     session_id: UUID,
     db: Client = Depends(get_db),
-    actor: dict = Depends(verify_clinical_auth),
+    current_staff: TokenData = Depends(get_current_staff),
 ):
     """
     Returns a 307 temporary redirect to the compiled PDF report stored in Supabase Storage.
     Returns 404 with error details if the PDF has not been generated yet.
     """
-    logger.info("Received request to retrieve PDF report redirect URL", session_id=session_id)
-    report_service = ReportService(db, AuditService(db))
+    logger.info("Received request to retrieve PDF report redirect URL", session_id=session_id, staff_id=current_staff.staff_id)
+    audit_service = AuditService(db)
+    patient_service = PatientService(db, audit_service)
+    
+    # Enforce institutional boundary on retrieval
+    session = await patient_service.get_session(session_id, actor=current_staff.staff_id)
+    check_session_institution(session, current_staff)
+
+    report_service = ReportService(db, audit_service)
     try:
         report = await report_service.get_report(session_id)
         if not report.report_pdf_url:
@@ -386,13 +418,20 @@ async def get_report_pdf(
 async def get_fhir_bundle(
     session_id: UUID,
     db: Client = Depends(get_db),
-    actor: dict = Depends(verify_clinical_auth),
+    current_staff: TokenData = Depends(get_current_staff),
 ):
     """
     Returns the raw FHIR bundle JSON object compiled for this session.
     """
-    logger.info("Received request to retrieve FHIR bundle JSON", session_id=session_id)
-    report_service = ReportService(db, AuditService(db))
+    logger.info("Received request to retrieve FHIR bundle JSON", session_id=session_id, staff_id=current_staff.staff_id)
+    audit_service = AuditService(db)
+    patient_service = PatientService(db, audit_service)
+    
+    # Enforce institutional boundary on retrieval
+    session = await patient_service.get_session(session_id, actor=current_staff.staff_id)
+    check_session_institution(session, current_staff)
+
+    report_service = ReportService(db, audit_service)
     try:
         report = await report_service.get_report(session_id)
         if not report.fhir_bundle:

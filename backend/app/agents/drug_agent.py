@@ -46,30 +46,30 @@ Primary diagnosis context: {primary_diagnosis}
 Drug reference context: {retrieved_context}
 
 Return a JSON object with:
-{
+{{
   "interactions_found": true/false,
   "drug_interactions": [
-    {
+    {{
       "drug_a": "",
       "drug_b": "",
       "severity": "mild | moderate | severe | contraindicated",
       "mechanism": "brief pharmacological explanation",
       "clinical_effect": "what happens clinically",
       "management": "how to manage this interaction"
-    }
+    }}
   ],
   "allergy_conflicts": [
-    {
+    {{
       "medication": "",
       "allergen": "",
       "risk": "description of risk"
-    }
+    }}
   ],
   "contraindications": ["list of specific contraindications found"],
   "overall_medication_safe": true/false,
   "pharmacist_review_required": true/false,
   "safety_notes": ["important safety notes"]
-}
+}}
 """
 
 # ── Enriched User prompt template with FDA Label Data ──────────────────────────

@@ -43,7 +43,7 @@ api.interceptors.request.use(
     
     // Inject JWT token if available in localStorage
     if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('medi_token');
+      const token = localStorage.getItem('mediguard_clinical_token');
       if (token && config.headers) {
         config.headers['Authorization'] = `Bearer ${token}`;
         hasAuth = true;
@@ -170,7 +170,7 @@ export async function getAuditTrail(sessionId: string): Promise<AuditLogEntry[]>
 export function getPdfUrl(sessionId: string): string {
   let token = '';
   if (typeof window !== 'undefined') {
-    token = localStorage.getItem('medi_token') || '';
+    token = localStorage.getItem('mediguard_clinical_token') || '';
   }
   // Use relative URL in production (Vercel proxy handles routing), direct URL in dev
   const baseURL = (isProduction && !isServer) ? '' : (process.env.NEXT_PUBLIC_API_URL || '');
@@ -195,27 +195,112 @@ export async function checkHealth(): Promise<{ status: string; timestamp: string
 // CLINICAL AUTHENTICATION API CALLS
 // ==========================================
 
-export interface ClinicianProfile {
-  username: string;
-  name: string;
-  role: string;
-  specialty: string;
+export interface LoginPayload {
+  email: string;
+  key_phrase: string;
+  institution_code: string;
 }
 
-export interface TokenResponse {
+export interface LoginResponseData {
   access_token: string;
   token_type: string;
-  name: string;
+  expires_in: number;
+  staff_id: string;
+  full_name: string;
   role: string;
+  institution_name: string;
+  institution_code: string;
 }
 
-export async function loginClinician(username: string, password: string): Promise<TokenResponse> {
-  const res = await api.post<TokenResponse>('/api/v1/auth/login', { username, password });
+export interface StaffProfileData {
+  id: string;
+  email: string;
+  full_name: string;
+  role: 'physician' | 'nurse' | 'pharmacist' | 'admin' | 'superadmin';
+  specialization: string | null;
+  institution_name: string;
+  institution_code: string;
+  last_login_at: string | null;
+  login_count: number;
+  is_active: boolean;
+  employee_id: string | null;
+}
+
+export async function loginClinicalStaff(payload: LoginPayload): Promise<LoginResponseData> {
+  const res = await api.post<LoginResponseData>('/api/v1/auth/login', payload);
   return res.data;
 }
 
-export async function getClinicianProfile(): Promise<ClinicianProfile> {
-  const res = await api.get<ClinicianProfile>('/api/v1/auth/me');
+export async function getClinicalStaffProfile(): Promise<StaffProfileData> {
+  const res = await api.get<StaffProfileData>('/api/v1/auth/me');
+  return res.data;
+}
+
+export async function logoutClinicalStaff(): Promise<void> {
+  await api.post('/api/v1/auth/logout');
+}
+
+export interface CreateStaffPayload {
+  email: string;
+  full_name: string;
+  role: string;
+  key_phrase: string;
+  specialization?: string | null;
+  employee_id?: string | null;
+  institution_code: string;
+}
+
+export async function createClinicalStaff(payload: CreateStaffPayload): Promise<StaffProfileData> {
+  const res = await api.post<StaffProfileData>('/api/v1/auth/admin/staff', payload);
+  return res.data;
+}
+
+export async function listClinicalStaff(): Promise<StaffProfileData[]> {
+  const res = await api.get<StaffProfileData[]>('/api/v1/auth/admin/staff');
+  return res.data;
+}
+
+export async function deactivateClinicalStaff(staffId: string): Promise<void> {
+  await api.delete(`/api/v1/auth/admin/staff/${staffId}`);
+}
+
+export async function reactivateClinicalStaff(staffId: string): Promise<void> {
+  await api.post(`/api/v1/auth/admin/staff/${staffId}/reactivate`);
+}
+
+export interface AuditLogItem {
+  id: string;
+  created_at: string;
+  staff_id: string | null;
+  institution_id: string;
+  institution_code: string;
+  email: string;
+  action: string;
+  ip_address: string;
+  user_agent: string;
+  failure_reason: string | null;
+  metadata: any;
+}
+
+export async function getAdminAuditLogs(limit = 100, offset = 0): Promise<AuditLogItem[]> {
+  const res = await api.get<AuditLogItem[]>(`/api/v1/auth/admin/audit-log?limit=${limit}&offset=${offset}`);
+  return res.data;
+}
+
+export interface CreateInstitutionPayload {
+  institution_code: string;
+  institution_name: string;
+  institution_type: string;
+  city: string;
+  state: string;
+  max_staff_accounts?: number;
+  first_admin_email: string;
+  first_admin_name: string;
+  first_admin_key_phrase: string;
+}
+
+export async function createInstitution(payload: CreateInstitutionPayload): Promise<any> {
+  const res = await api.post<any>('/api/v1/superadmin/institution', payload);
   return res.data;
 }
 

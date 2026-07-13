@@ -1,10 +1,12 @@
 from typing import AsyncGenerator, Optional
 from fastapi import Header, HTTPException, Request, status, Depends
+from fastapi.security import OAuth2PasswordBearer
 from app.config import Settings, get_settings
 from app.db.supabase_client import get_supabase_client
 from app.rag.retriever import MedicalRetriever
 from app.utils.logger import get_logger
 from app.utils.exceptions import DatabaseException
+from app.schemas.auth import TokenData
 
 logger = get_logger("app.dependencies")
 
@@ -150,5 +152,54 @@ def verify_clinical_auth(
         "role": "system",
         "specialty": "Integration"
     }
+
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+
+
+async def get_current_staff(
+    token: str = Depends(oauth2_scheme),
+    db = Depends(get_db)
+) -> TokenData:
+    """Authenticates the bearer token and returns the TokenData metadata."""
+    from app.services.auth_service import AuthService
+    auth_service = AuthService(db)
+    return await auth_service.verify_token(token)
+
+
+def require_physician(
+    current_staff: TokenData = Depends(get_current_staff)
+) -> TokenData:
+    """Dependency asserting the active clinician possesses physician privileges."""
+    if current_staff.role not in ["physician", "admin", "superadmin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Physician access required"
+        )
+    return current_staff
+
+
+def require_admin(
+    current_staff: TokenData = Depends(get_current_staff)
+) -> TokenData:
+    """Dependency asserting the active clinician possesses admin or superadmin privileges."""
+    if current_staff.role not in ["admin", "superadmin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    return current_staff
+
+
+def require_pharmacist(
+    current_staff: TokenData = Depends(get_current_staff)
+) -> TokenData:
+    """Dependency asserting the active clinician possesses pharmacist, physician, or admin privileges."""
+    if current_staff.role not in ["pharmacist", "physician", "admin", "superadmin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Pharmacist access required"
+        )
+    return current_staff
 
 

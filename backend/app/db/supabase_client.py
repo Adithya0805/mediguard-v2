@@ -12,7 +12,11 @@ _mock_db: Dict[str, List[Dict[str, Any]]] = {
     "patient_sessions": [],
     "agent_runs": [],
     "clinical_reports": [],
-    "audit_logs": []
+    "audit_logs": [],
+    "institutions": [],
+    "clinical_staff": [],
+    "auth_sessions": [],
+    "auth_audit_log": []
 }
 
 
@@ -66,6 +70,14 @@ class MockSupabaseQueryBuilder:
             for rec in records:
                 # Store a copy to avoid mutation reference side effects
                 record_copy = dict(rec)
+                if "id" not in record_copy:
+                    import uuid
+                    record_copy["id"] = str(uuid.uuid4())
+                if "created_at" not in record_copy:
+                    from datetime import datetime
+                    record_copy["created_at"] = datetime.utcnow().isoformat()
+                if "is_active" not in record_copy:
+                    record_copy["is_active"] = True
                 _mock_db[self.table_name].append(record_copy)
                 inserted_records.append(record_copy)
             return MockResponse(inserted_records)
@@ -76,7 +88,7 @@ class MockSupabaseQueryBuilder:
         
         # 3. Handle Filters
         for field, val in self.filters:
-            filtered_records = [r for r in filtered_records if str(r.get(field)) == str(val)]
+            filtered_records = [r for r in filtered_records if str(r.get(field)).strip().lower() == str(val).strip().lower()]
             
         # 4. Handle Update
         if self.update_data is not None:

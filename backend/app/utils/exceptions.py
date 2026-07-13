@@ -73,6 +73,28 @@ class DatabaseConnectionException(DatabaseException):
     pass
 
 
+class AuthenticationException(MediGuardException):
+    """Exception raised when credentials fail validation or session expires."""
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            message=message,
+            error_code="AUTHENTICATION_FAILED",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            details=details
+        )
+
+
+class ForbiddenException(MediGuardException):
+    """Exception raised when a clinician attempts an unauthorized action."""
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            message=message,
+            error_code="FORBIDDEN_ACCESS",
+            status_code=status.HTTP_403_FORBIDDEN,
+            details=details
+        )
+
+
 class ReportGenerationException(MediGuardException):
     """Raised when compiling clinical analysis documents or FHIR resources fails."""
     def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):

@@ -41,15 +41,15 @@ Red flags: {red_flags}
 Medical context: {retrieved_context}
 
 Return a JSON object with:
-{
+{{
   "severity": "mild | moderate | severe | critical",
   "body_systems_affected": ["list of body systems"],
-  "symptom_clusters": [{"cluster_name": "", "symptoms": []}],
+  "symptom_clusters": [ {{"cluster_name": "", "symptoms": []}} ],
   "icd10_categories": ["suggested ICD-10 category codes with names"],
   "triage_recommendation": "immediate | urgent | semi-urgent | routine",
   "clinical_reasoning": "paragraph explaining the analysis",
   "requires_emergency": true/false
-}
+}}
 """
 
 

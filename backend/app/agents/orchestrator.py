@@ -331,3 +331,12 @@ def _calculate_duration(pipeline_start_time: str) -> float:
 
 # ── Module-level singleton ────────────────────────────────────────────────────
 orchestrator = MediGuardOrchestrator()
+
+
+def build_graph():
+    """Factory helper: returns the compiled LangGraph from the module-level orchestrator.
+    
+    Intended for external callers (tests, health checks) that need access to
+    the compiled clinical state graph without constructing a new orchestrator.
+    """
+    return orchestrator.graph
