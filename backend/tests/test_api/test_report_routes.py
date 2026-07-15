@@ -38,6 +38,7 @@ class TestGenerateReport:
             mock_session.current_medications = []
             mock_session.allergies = []
             mock_session.vitals = {}
+            mock_session.institution_id = "test-inst-1111-2222-3333-4444"
             mock_ps.get_session.return_value = mock_session
             mock_ps.update_session_status.return_value = None
             MockPS.return_value = mock_ps
@@ -84,6 +85,7 @@ class TestGenerateReport:
             mock_ps = AsyncMock()
             mock_session = MagicMock()
             mock_session.status = "completed"
+            mock_session.institution_id = "test-inst-1111-2222-3333-4444"
             mock_ps.get_session.return_value = mock_session
             MockPS.return_value = mock_ps
 
@@ -108,6 +110,7 @@ class TestGenerateReport:
             mock_ps = AsyncMock()
             mock_session = MagicMock()
             mock_session.status = "processing"
+            mock_session.institution_id = "test-inst-1111-2222-3333-4444"
             mock_ps.get_session.return_value = mock_session
             MockPS.return_value = mock_ps
 
@@ -135,6 +138,7 @@ class TestGetReport:
             mock_ps = AsyncMock()
             mock_session = MagicMock()
             mock_session.status = "processing"
+            mock_session.institution_id = "test-inst-1111-2222-3333-4444"
             mock_ps.get_session.return_value = mock_session
             MockPS.return_value = mock_ps
 
@@ -154,6 +158,7 @@ class TestGetReport:
             mock_ps = AsyncMock()
             mock_session = MagicMock()
             mock_session.status = "failed"
+            mock_session.institution_id = "test-inst-1111-2222-3333-4444"
             mock_ps.get_session.return_value = mock_session
             MockPS.return_value = mock_ps
 

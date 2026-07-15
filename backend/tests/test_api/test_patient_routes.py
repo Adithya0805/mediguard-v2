@@ -48,7 +48,7 @@ class TestCreateSession:
             "/api/v1/patient/session", json=sample_patient_payload
         )
         assert response.status_code == 401
-        assert "Missing" in response.json()["detail"]
+        assert "Not authenticated" in response.json()["detail"]
 
     async def test_create_session_wrong_api_key(
         self, ac_no_auth: AsyncClient, sample_patient_payload

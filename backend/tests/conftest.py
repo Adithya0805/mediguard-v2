@@ -62,6 +62,8 @@ def app():
     # Override DB to avoid real Supabase calls
     fastapi_app.dependency_overrides[get_db] = _mock_db_dependency
     # Override auth to always pass
+    from app.dependencies import get_current_staff
+    from app.schemas.auth import TokenData
     fastapi_app.dependency_overrides[verify_api_key] = _mock_api_key_dependency
     fastapi_app.dependency_overrides[verify_clinical_auth] = lambda: {
         "username": "robertson@mediguard.ai",
@@ -69,6 +71,13 @@ def app():
         "role": "physician",
         "specialty": "Cardiology"
     }
+    fastapi_app.dependency_overrides[get_current_staff] = lambda: TokenData(
+        staff_id="a1111111-1111-1111-1111-111111111111",
+        institution_id="test-inst-1111-2222-3333-4444",
+        institution_code="METRO-GEN-2026",
+        role="physician",
+        exp=9999999999
+    )
 
     yield fastapi_app
 
@@ -217,6 +226,7 @@ def sample_session_response(sample_session_id):
     mock.allergies      = []
     mock.vitals         = {"bp": "145/90", "heart_rate": 88}
     mock.status         = "pending"
+    mock.institution_id = "test-inst-1111-2222-3333-4444"
     mock.created_at     = datetime.now(timezone.utc)
     return mock
 

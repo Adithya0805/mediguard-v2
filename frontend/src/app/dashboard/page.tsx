@@ -1,154 +1,211 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import StatsCard from '@/components/dashboard/StatsCard';
 import RecentSessions from '@/components/dashboard/RecentSessions';
-import UrgencyDistributionChart from '@/components/dashboard/UrgencyDistributionChart';
-import AgentPipelineStatus from '@/components/dashboard/AgentPipelineStatus';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
+
+// Import newly created analytics hooks & charts
+import useAnalytics from '@/hooks/useAnalytics';
+import AnomalyAlertBanner from '@/components/dashboard/AnomalyAlertBanner';
+import DailyTrendChart from '@/components/dashboard/DailyTrendChart';
+import AgentPerformanceChart from '@/components/dashboard/AgentPerformanceChart';
+import DiagnosisPatternChart from '@/components/dashboard/DiagnosisPatternChart';
+import DrugInteractionChart from '@/components/dashboard/DrugInteractionChart';
+import DemographicsChart from '@/components/dashboard/DemographicsChart';
+
 import { listSessions } from '@/lib/api';
 import { PatientSession } from '@/types';
 import { 
   Users, 
   CheckSquare, 
   AlertTriangle, 
-  Clock 
+  Clock,
+  Calendar,
+  RefreshCw,
+  TrendingUp,
+  TrendingDown
 } from 'lucide-react';
 
 export default function Dashboard() {
-  const [allSessions, setAllSessions] = useState<PatientSession[]>([]);
-  const [activeSessions, setActiveSessions] = useState<PatientSession[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [days, setDays] = useState(30);
+  const [recentSessionsList, setRecentSessionsList] = useState<PatientSession[]>([]);
+  const [recentLoading, setRecentLoading] = useState(true);
 
-  const fetchDashboardData = async () => {
+  // Retrieve data using custom analytics hook
+  const { data, isLoading, isRefreshing, error, refetch } = useAnalytics(days);
+
+  // Fetch recent patient sessions separately
+  const fetchRecentSessions = async () => {
     try {
-      const response = await listSessions(100, 0);
-      const data = response.data || [];
-      setAllSessions(data);
-      
-      // Filter active (processing / pending) runs
-      const active = data.filter(
-        (s) => s.status === 'processing' || s.status === 'pending'
-      );
-      setActiveSessions(active);
+      setRecentLoading(true);
+      const response = await listSessions(10, 0);
+      setRecentSessionsList(response.data || []);
     } catch (e) {
-      const err = e as { message?: string };
-      setError(err.message || 'Failed to fetch dashboard metrics.');
+      console.error('Failed to retrieve recent sessions list', e);
     } finally {
-      setIsLoading(false);
+      setRecentLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchDashboardData();
-    // Poll dashboard stats every 10 seconds
-    const interval = setInterval(fetchDashboardData, 10000);
-    return () => clearInterval(interval);
+    fetchRecentSessions();
   }, []);
 
-  if (isLoading) {
+  const handleRefreshAll = () => {
+    refetch();
+    fetchRecentSessions();
+  };
+
+  if (isLoading || !data) {
     return (
-      <div className="flex h-[70vh] items-center justify-center">
-        <LoadingSpinner size="lg" label="Establishing secure connection and compiling metrics..." />
+      <div className="flex h-[75vh] flex-col items-center justify-center gap-4">
+        <LoadingSpinner size="lg" label="Initializing secure clinician analytics engine..." />
+        <span className="text-xs text-text-muted font-mono">Loading data from PostgreSQL aggregation views...</span>
       </div>
     );
   }
 
-  if (error) {
-    return (
-      <div className="p-8">
-        <div className="p-4 rounded-xl bg-danger/10 border border-danger/20 text-danger text-sm max-w-xl mx-auto text-center font-sans font-semibold">
-          Error: {error}
-        </div>
-      </div>
-    );
-  }
-
-  // Calculate Metrics
-  const totalSessionsCount = allSessions.length;
+  // Calculate critical case metric from overview breakdown
+  const criticalCount = (data.overview.urgency_breakdown.critical || 0) + (data.overview.urgency_breakdown.high || 0);
   
-  const completedReportsCount = allSessions.filter((s) => s.status === 'completed').length;
-  
-  // High/critical count based on statuses/patient context
-  const criticalCasesCount = allSessions.filter(
-    (s) => s.status === 'failed' || s.patient_name.includes('Kumar')
-  ).length;
-
-  const averageTime = '18.4s';
+  // Format WoW trend
+  const wowChange = data.overview.week_over_week_change_percent;
+  const isWowPositive = wowChange >= 0;
 
   return (
     <ErrorBoundary>
-      <div className="flex flex-col gap-8 w-full">
+      <div className="flex flex-col gap-8 w-full p-1 sm:p-2">
         
-        {/* Header Block */}
-        <div className="flex flex-col text-left">
-          <h2 className="font-sans font-bold text-2xl tracking-tight text-text-primary">
-            Clinical CDSS Dashboard
-          </h2>
-          <span className="text-sm text-text-secondary mt-1">
-            Real-time status tracking for clinical decision support agent nodes.
-          </span>
+        {/* Header Block & Time-Range Filter */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 text-left border-b border-border pb-5">
+          <div className="flex flex-col">
+            <h2 className="font-sans font-bold text-2xl tracking-tight text-text-primary">
+              Clinical Command Center
+            </h2>
+            <span className="text-sm text-text-secondary mt-1">
+              Real-time multi-agent benchmarking, safety anomalies, and triage metrics
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* Sync Refresh Button */}
+            <button
+              onClick={handleRefreshAll}
+              disabled={isRefreshing}
+              className="p-2 rounded-xl border border-border bg-surface hover:bg-surface-muted transition-colors text-text-secondary disabled:opacity-50 cursor-pointer"
+              title="Refresh all metrics"
+            >
+              <RefreshCw className={`h-4.5 w-4.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </button>
+
+            {/* Days selection pill row */}
+            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-surface-muted border border-border">
+              {[7, 30, 90].map((d) => (
+                <button
+                  key={d}
+                  onClick={() => setDays(d)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold font-sans tracking-tight transition-all cursor-pointer ${
+                    days === d 
+                      ? 'bg-surface text-primary shadow-sm border border-border/80' 
+                      : 'text-text-muted hover:text-text-secondary'
+                  }`}
+                >
+                  Last {d} Days
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
+
+        {/* Anomaly Alerts Banner Section */}
+        <AnomalyAlertBanner anomalies={data.anomalies} />
 
         {/* 4 Stats Cards Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 w-full">
           <StatsCard
-            title="Total Sessions"
-            value={totalSessionsCount}
-            label="Total patient assessments"
+            title="Total Intake"
+            value={data.overview.total_sessions}
+            label={`${data.overview.sessions_today} admitted today`}
             icon={Users}
             colorClass="text-primary bg-primary/10 border-primary/20"
-            trend={{ value: '+14% wk', isPositive: true }}
+            trend={{ 
+              value: `${isWowPositive ? '+' : ''}${wowChange}% WoW`, 
+              isPositive: isWowPositive 
+            }}
           />
           <StatsCard
-            title="Completed Reports"
-            value={completedReportsCount}
+            title="Completed Analysis"
+            value={data.overview.completed_sessions}
             label="Decision support compiled"
             icon={CheckSquare}
             colorClass="text-success bg-success/10 border-success/20"
-            trend={{ value: '100% save', isPositive: true }}
+            trend={{ 
+              value: `${data.overview.completion_rate_percent}% rate`, 
+              isPositive: data.overview.completion_rate_percent >= 90 
+            }}
           />
           <StatsCard
-            title="Critical Cases"
-            value={criticalCasesCount}
-            label="ACS & immediate triage"
+            title="Urgent Triages"
+            value={criticalCount}
+            label={`${data.overview.urgency_breakdown.critical || 0} critical cases flagged`}
             icon={AlertTriangle}
             colorClass="text-danger bg-danger/10 border-danger/20"
-            trend={{ value: 'Triage active', isPositive: false }}
+            trend={{ 
+              value: 'Urgency active', 
+              isPositive: criticalCount === 0 
+            }}
           />
           <StatsCard
-            title="Avg Processing Time"
-            value={averageTime}
-            label="Intake-to-FHIR bundle speed"
+            title="Avg Processing Speed"
+            value={`${data.overview.avg_pipeline_seconds}s`}
+            label={`fastest: ${data.overview.fastest_pipeline_seconds}s`}
             icon={Clock}
             colorClass="text-accent bg-accent/10 border-accent/20"
-            trend={{ value: 'Bedrock optimized', isPositive: true }}
+            trend={{ 
+              value: 'Pipeline OK', 
+              isPositive: data.overview.avg_pipeline_seconds < 25 
+            }}
           />
         </div>
 
-        {/* Charts & Table Middle Row */}
+        {/* Primary Row: Daily Triage (Area) + Patient Demographics */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 w-full items-stretch">
-          
-          {/* Recent Sessions Table (60%) */}
-          <div className="lg:col-span-7">
-            <RecentSessions sessions={allSessions.slice(0, 10)} />
+          <div className="lg:col-span-8 flex">
+            <DailyTrendChart data={data.daily_trend} />
           </div>
-
-          {/* Urgency Chart (40%) */}
-          <div className="lg:col-span-5">
-            <UrgencyDistributionChart sessions={allSessions} />
+          <div className="lg:col-span-4 flex">
+            <DemographicsChart data={data.patient_demographics} />
           </div>
-
         </div>
 
-        {/* Active Pipelines Bottom Row */}
-        <div className="w-full">
-          <AgentPipelineStatus 
-            activeSessions={activeSessions} 
-            onRefresh={fetchDashboardData}
-          />
+        {/* Secondary Row: Agent Benchmarking + Drug Interactions */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 w-full items-stretch">
+          <div className="lg:col-span-7 flex">
+            <AgentPerformanceChart data={data.agent_performance} />
+          </div>
+          <div className="lg:col-span-5 flex">
+            <DrugInteractionChart data={data.drug_interactions} />
+          </div>
+        </div>
+
+        {/* Tertiary Row: Diagnostic Patterns + Live Recent Sessions */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 w-full items-stretch">
+          <div className="lg:col-span-7 flex">
+            <DiagnosisPatternChart data={data.top_diagnoses} />
+          </div>
+          <div className="lg:col-span-5 flex">
+            <div className="w-full h-full">
+              {recentLoading ? (
+                <div className="h-full w-full flex items-center justify-center p-8 border border-border rounded-2xl bg-surface shadow-lg">
+                  <LoadingSpinner size="md" label="Loading live triages..." />
+                </div>
+              ) : (
+                <RecentSessions sessions={recentSessionsList} />
+              )}
+            </div>
+          </div>
         </div>
 
       </div>

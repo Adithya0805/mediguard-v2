@@ -7,7 +7,15 @@ import {
   ClinicalReportResponse,
   AuditLogEntry,
   PaginatedResponse,
-  ApiError
+  ApiError,
+  AnalyticsOverview,
+  AnalyticsDailyTrend,
+  AnalyticsAgentPerformance,
+  AnalyticsDiagnosisFrequency,
+  AnalyticsDrugInteractions,
+  AnalyticsDemographics,
+  AnalyticsAnomaly,
+  AnalyticsDashboardResponse
 } from '@/types';
 
 // In Vercel production, use relative URL so requests go through vercel.json rewrites → Railway proxy
@@ -343,6 +351,50 @@ export async function fetchEhrPatient(patientId: string): Promise<EhrPatientReco
 
 export async function syncToEhr(sessionId: string): Promise<EhrSyncResponse> {
   const res = await api.post<EhrSyncResponse>(`/api/v1/ehr/sync/${sessionId}`);
+  return res.data;
+}
+
+// ==========================================
+// CLINICAL ANALYTICS API CALLS
+// ==========================================
+
+export async function getAnalyticsDashboard(days = 30): Promise<AnalyticsDashboardResponse> {
+  const res = await api.get<AnalyticsDashboardResponse>(`/api/v1/analytics/dashboard?days=${days}`);
+  return res.data;
+}
+
+export async function getAnalyticsOverview(days = 30): Promise<AnalyticsOverview> {
+  const res = await api.get<AnalyticsOverview>(`/api/v1/analytics/overview?days=${days}`);
+  return res.data;
+}
+
+export async function getAnalyticsTrend(days = 30): Promise<AnalyticsDailyTrend[]> {
+  const res = await api.get<AnalyticsDailyTrend[]>(`/api/v1/analytics/trend?days=${days}`);
+  return res.data;
+}
+
+export async function getAnalyticsAgents(): Promise<AnalyticsAgentPerformance[]> {
+  const res = await api.get<AnalyticsAgentPerformance[]>('/api/v1/analytics/agents');
+  return res.data;
+}
+
+export async function getAnalyticsDiagnoses(limit = 10): Promise<AnalyticsDiagnosisFrequency[]> {
+  const res = await api.get<AnalyticsDiagnosisFrequency[]>(`/api/v1/analytics/diagnoses?limit=${limit}`);
+  return res.data;
+}
+
+export async function getAnalyticsDrugs(): Promise<AnalyticsDrugInteractions> {
+  const res = await api.get<AnalyticsDrugInteractions>('/api/v1/analytics/drugs');
+  return res.data;
+}
+
+export async function getAnalyticsDemographics(): Promise<AnalyticsDemographics> {
+  const res = await api.get<AnalyticsDemographics>('/api/v1/analytics/demographics');
+  return res.data;
+}
+
+export async function getAnalyticsAnomalies(): Promise<AnalyticsAnomaly[]> {
+  const res = await api.get<AnalyticsAnomaly[]>('/api/v1/analytics/anomalies');
   return res.data;
 }
 

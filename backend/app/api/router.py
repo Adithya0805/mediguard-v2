@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1 import health, patient, report, auth, ehr, fhir_import
+from app.api.v1 import health, patient, report, auth, ehr, fhir_import, analytics
 
 api_router = APIRouter()
 
@@ -10,5 +10,6 @@ api_router.include_router(report.router, prefix="/report", tags=["Clinical Repor
 api_router.include_router(auth.router, prefix="/auth", tags=["Clinician Authentication"])
 api_router.include_router(ehr.router, prefix="/ehr", tags=["EHR Interoperability"])
 api_router.include_router(fhir_import.router, prefix="/fhir", tags=["FHIR Patient Import"])
+api_router.include_router(analytics.router, prefix="/analytics", tags=["Clinical Analytics"])
 
 
