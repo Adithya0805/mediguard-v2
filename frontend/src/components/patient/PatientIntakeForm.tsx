@@ -13,6 +13,8 @@ import {
 import { createSession, generateReport, fetchEhrPatient } from '@/lib/api';
 import SymptomTagInput from './SymptomTagInput';
 import VitalsInput from './VitalsInput';
+import FHIRImportModal from './FHIRImportModal';
+import { CheckCircle2 } from 'lucide-react';
 import { 
   User, 
   HeartPulse, 
@@ -27,6 +29,36 @@ export default function PatientIntakeForm() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isFhirModalOpen, setIsFhirModalOpen] = useState(false);
+  const [isFhirImported, setIsFhirImported] = useState(false);
+
+  const handleFhirImport = (data: any) => {
+    setIsFhirImported(true);
+    setValue('patient_name', data.patient_name);
+    setValue('age', data.patient_age);
+    setValue('gender', data.patient_gender as any);
+    setValue('chief_complaint', '');
+    setValue('symptoms', []);
+    setValue('medical_history', data.medical_history || []);
+    setValue('allergies', data.allergies || []);
+    setValue('current_medications', data.current_medications || []);
+    setValue('vitals', {
+      bp: data.vitals?.bp || '',
+      heart_rate: data.vitals?.heart_rate,
+      temperature: data.vitals?.temperature,
+      spo2: data.vitals?.spo2,
+      weight: data.vitals?.weight,
+      height: data.vitals?.height
+    });
+
+    // Auto focus on chief_complaint
+    setTimeout(() => {
+      const el = document.getElementById('chief_complaint');
+      if (el) {
+        el.focus();
+      }
+    }, 150);
+  };
 
   const {
     register,
@@ -60,6 +92,7 @@ export default function PatientIntakeForm() {
 
   const vitalsValues = watch('vitals') || {};
   const currentSymptoms = watch('symptoms') || [];
+  const chiefComplaintVal = watch('chief_complaint') || '';
 
   const handleNextStep = async () => {
     let isValid = false;
@@ -176,9 +209,54 @@ export default function PatientIntakeForm() {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-6 text-left"
             >
+              {/* How would you like to add patient options bar */}
+              <div className="p-4 rounded-xl bg-[#1f2937]/35 border border-border/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <span className="text-xs font-bold text-text-secondary uppercase tracking-wide">Add Patient Record</span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsFhirImported(false);
+                    }}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
+                      !isFhirImported 
+                        ? 'bg-primary/10 border-primary/30 text-primary shadow-[0_0_8px_rgba(13,148,136,0.15)]' 
+                        : 'bg-background border-border text-text-muted hover:text-text-secondary'
+                    }`}
+                  >
+                    📋 Manual Entry
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsFhirModalOpen(true)}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
+                      isFhirImported 
+                        ? 'bg-primary/10 border-primary/30 text-primary shadow-[0_0_8px_rgba(13,148,136,0.15)]' 
+                        : 'bg-background border-border text-text-muted hover:text-text-secondary'
+                    }`}
+                  >
+                    🏥 Import FHIR
+                  </button>
+                </div>
+              </div>
+
+              {isFhirImported && (
+                <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400 leading-normal flex items-start gap-2.5 font-sans">
+                  <CheckCircle2 className="h-4.5 w-4.5 shrink-0 mt-0.5 text-emerald-500" />
+                  <span><b>Patient imported from FHIR server.</b> Please verify the pre-filled fields and enter the chief complaint and active symptoms below.</span>
+                </div>
+              )}
+
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex flex-col">
-                  <h3 className="text-base font-bold text-text-primary">Patient Demographics</h3>
+                  <h3 className="text-base font-bold text-text-primary flex items-center gap-2">
+                    <span>Patient Demographics</span>
+                    {isFhirImported && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                        FHIR Imported
+                      </span>
+                    )}
+                  </h3>
                   <span className="text-xs text-text-secondary mt-0.5 font-sans">Enter patient identity and chief complaints.</span>
                 </div>
                 
@@ -292,11 +370,16 @@ export default function PatientIntakeForm() {
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-text-secondary">Chief Complaint (Min 10 characters)</label>
                 <textarea
+                  id="chief_complaint"
                   required
                   rows={4}
                   placeholder="Describe patient's acute symptoms, pain vectors, timelines, and reasons for assessment..."
                   {...register('chief_complaint')}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-background border border-border text-text-primary text-sm focus:border-primary focus:outline-none transition-colors leading-relaxed"
+                  className={`w-full px-3.5 py-2.5 rounded-xl bg-background text-text-primary text-sm focus:outline-none transition-colors leading-relaxed ${
+                    isFhirImported && !chiefComplaintVal.trim()
+                      ? 'border border-amber-500/60 shadow-[0_0_8px_rgba(245,158,11,0.15)] focus:border-amber-500'
+                      : 'border border-border focus:border-primary'
+                  }`}
                 />
                 {errors.chief_complaint && (
                   <span className="text-[11px] text-danger font-semibold mt-1">{errors.chief_complaint.message}</span>
@@ -330,6 +413,7 @@ export default function PatientIntakeForm() {
                     label="Active Clinical Symptoms (Min 1 required)"
                     placeholder="Type symptom (e.g. chest pain) and press Enter..."
                     error={errors.symptoms?.message}
+                    highlightAmber={isFhirImported && currentSymptoms.length === 0}
                   />
                 )}
               />
@@ -461,6 +545,12 @@ export default function PatientIntakeForm() {
 
       </form>
 
+      {/* FHIR Importer Modal Dialog */}
+      <FHIRImportModal
+        isOpen={isFhirModalOpen}
+        onClose={() => setIsFhirModalOpen(false)}
+        onImport={handleFhirImport}
+      />
     </div>
   );
 }

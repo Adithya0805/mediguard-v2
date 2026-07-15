@@ -7,7 +7,9 @@ import DrugInteractionCard from './DrugInteractionCard';
 import FHIRViewer from './FHIRViewer';
 import ConfidenceBar from '@/components/shared/ConfidenceBar';
 import UrgencyBadge from '@/components/shared/UrgencyBadge';
-import { getPdfUrl, getAuditTrail, syncToEhr } from '@/lib/api';
+import { getAuditTrail, syncToEhr } from '@/lib/api';
+import PDFDownloadManager from './PDFDownloadManager';
+import '@/styles/print.css';
 import { toast } from 'sonner';
 import { 
   FileText, 
@@ -57,19 +59,25 @@ export default function ReportViewer({ report, session }: ReportViewerProps) {
     fetchLogs();
   }, [session.id]);
 
-  const handlePrint = () => {
-    if (typeof window !== 'undefined') {
-      window.print();
-    }
-  };
+  const [printMode, setPrintMode] = useState<'clinical' | 'patient' | null>(null);
 
-  const handleDownloadPdf = () => {
-    // Navigate to PDF redirect route
-    const pdfUrl = getPdfUrl(session.id);
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      setPrintMode(null);
+    };
     if (typeof window !== 'undefined') {
-      window.open(pdfUrl, '_blank');
-      toast.success('Clinical PDF requested from storage.');
+      window.addEventListener('afterprint', handleAfterPrint);
+      return () => window.removeEventListener('afterprint', handleAfterPrint);
     }
+  }, []);
+
+  const triggerPrint = (mode: 'clinical' | 'patient') => {
+    setPrintMode(mode);
+    setTimeout(() => {
+      if (typeof window !== 'undefined') {
+        window.print();
+      }
+    }, 250);
   };
 
   const handleSyncEhr = async () => {
@@ -156,18 +164,11 @@ export default function ReportViewer({ report, session }: ReportViewerProps) {
           </button>
 
           <button
-            onClick={handleDownloadPdf}
+            onClick={() => triggerPrint('clinical')}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-text-primary hover:bg-primary/95 transition-all text-xs font-semibold shadow-md hover:scale-[1.01]"
           >
-            <Download className="h-3.5 w-3.5" />
-            <span>Download PDF Report</span>
-          </button>
-          <button
-            onClick={handlePrint}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-raised border border-border text-text-secondary hover:text-text-primary transition-all text-xs font-semibold hover:bg-surface-raised/90"
-          >
             <Printer className="h-3.5 w-3.5" />
-            <span>Print Report</span>
+            <span>Print View</span>
           </button>
         </div>
       </div>
@@ -288,6 +289,12 @@ export default function ReportViewer({ report, session }: ReportViewerProps) {
                 </div>
               </div>
 
+              {/* PDF Download and Print Manager */}
+              <PDFDownloadManager
+                sessionId={session.id}
+                onPrintClinical={() => triggerPrint('clinical')}
+                onPrintPatient={() => triggerPrint('patient')}
+              />
             </div>
 
           </div>
@@ -390,6 +397,190 @@ export default function ReportViewer({ report, session }: ReportViewerProps) {
           </div>
         )}
       </div>
+
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          PRINT LAYOUTS (HIDDEN FOR BROWSER VIEW, SHOWN ONLY FOR PRINTING)
+          ───────────────────────────────────────────────────────────────────────────── */}
+      {printMode === 'clinical' && (
+        <div className="hidden print-content relative text-left">
+          <div className="print-header">
+            <h1>CLINICAL EVALUATION REPORT</h1>
+            <p><strong>Prepared by:</strong> Metro General Hospital | <strong>Date:</strong> {new Date().toLocaleDateString()}</p>
+          </div>
+
+          <div className="no-break">
+            <h2>1. Patient Demographics & Intake</h2>
+            <table>
+              <tbody>
+                <tr>
+                  <th>Patient Name</th>
+                  <td>{session.patient_name}</td>
+                  <th>Age / Sex</th>
+                  <td>{session.patient_age} y/o | {session.patient_gender}</td>
+                </tr>
+                <tr>
+                  <th>Chief Complaint</th>
+                  <td colSpan={3}>{session.chief_complaint}</td>
+                </tr>
+                <tr>
+                  <th>Intake Vitals</th>
+                  <td colSpan={3}>
+                    {session.vitals?.bp && `BP: ${session.vitals.bp} mmHg | `}
+                    {session.vitals?.heart_rate && `HR: ${session.vitals.heart_rate} bpm | `}
+                    {session.vitals?.temperature && `Temp: ${session.vitals.temperature} °C | `}
+                    {session.vitals?.spo2 && `SpO2: ${session.vitals.spo2}% | `}
+                    {session.vitals?.weight && `Weight: ${session.vitals.weight} kg | `}
+                    {session.vitals?.height && `Height: ${session.vitals.height} cm`}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div className="no-break">
+            <h2>2. Decision Support Summary</h2>
+            <div className="print-disclaimer">
+              <p><strong>Urgency Rating:</strong> {urgency_level.toUpperCase()}</p>
+              <p className="mt-1"><strong>Triage Rationale:</strong> {report.urgency_assessment || clinical_summary}</p>
+            </div>
+            <p className="mt-2 text-xs leading-relaxed"><strong>Executive Summary:</strong> {clinical_summary}</p>
+          </div>
+
+          <div className="page-break" />
+
+          <div>
+            <h2>3. Differential Diagnosis (DDx) Mapping</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Rank</th>
+                  <th>Diagnosis Candidate</th>
+                  <th>ICD-10 Code</th>
+                  <th>Confidence</th>
+                  <th>Clinical Logic / Findings</th>
+                </tr>
+              </thead>
+              <tbody>
+                {differential_diagnosis.map((d) => (
+                  <tr key={d.rank}>
+                    <td>{d.rank}</td>
+                    <td><strong>{d.diagnosis}</strong></td>
+                    <td>{d.icd10_code || d.icd_10}</td>
+                    <td>{d.confidence ? `${Math.round(d.confidence * 100)}%` : 'N/A'}</td>
+                    <td>{d.clinical_reasoning}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="no-break">
+            <h2>4. Diagnostics & Treatment Plan</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Recommended Assessment / Test</th>
+                  <th>Directives</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recommended_tests.map((test, index) => (
+                  <tr key={index}>
+                    <td><strong>{test}</strong></td>
+                    <td>Standard urgent rule-out check. Check results immediately.</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {drug_interactions_found.length > 0 && (
+            <div className="no-break">
+              <h2>5. Drug Interaction Screening</h2>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Medication A</th>
+                    <th>Medication B</th>
+                    <th>Risk Severity</th>
+                    <th>Recommended Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {drug_interactions_found.map((item, index) => (
+                    <tr key={index}>
+                      <td>{item.drug_a}</td>
+                      <td>{item.drug_b}</td>
+                      <td style={{ color: 'red', fontWeight: 'bold' }}>{String(item.severity).toUpperCase()}</td>
+                      <td>{item.management}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div className="print-footer">
+            <span>Report ID: {session.id} | Decider: {reviewed_by_agent}</span>
+            <span>Licensed Clinical Decision Support Helper</span>
+          </div>
+        </div>
+      )}
+
+      {printMode === 'patient' && (
+        <div className="hidden print-content relative text-left">
+          <div className="print-header">
+            <h1>PATIENT VISIT SUMMARY</h1>
+            <p><strong>Prepared for:</strong> {session.patient_name} | <strong>Date:</strong> {new Date().toLocaleDateString()}</p>
+          </div>
+
+          <div className="no-break">
+            <h2>Your Health & Visit Details</h2>
+            <p className="text-xs leading-relaxed">
+              This report contains a patient-friendly summary of your visit and clinical findings. It was compiled to explain the medical findings in clear, plain English.
+            </p>
+            <table className="mt-3">
+              <tbody>
+                <tr>
+                  <th>Patient Name</th>
+                  <td>{session.patient_name}</td>
+                  <th>Date of Birth / Age</th>
+                  <td>{session.patient_age} years old</td>
+                </tr>
+                <tr>
+                  <th>Reason for Visit</th>
+                  <td colSpan={3}>{session.chief_complaint}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div className="no-break">
+            <h2>Clinical Recommendations</h2>
+            <p className="text-xs leading-relaxed">
+              Based on the symptoms presented, our clinical decision team identified key findings and suggests the following follow-up actions:
+            </p>
+            <ul className="list-disc pl-5 mt-2 text-xs space-y-1">
+              {recommended_tests.map((test, index) => (
+                <li key={index}>
+                  <strong>{test}</strong> — Schedule this diagnostic check with your medical practitioner.
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="no-break print-disclaimer">
+            <p className="font-bold text-red-700">⚠️ IMPORTANT MEDICAL NOTICE</p>
+            <p className="mt-1 text-xs">
+              Go to the nearest emergency room or call 911 immediately if you experience chest pain, pressure, sudden breathing problems, severe dizziness, speech difficulty, or muscle weakness.
+            </p>
+          </div>
+
+          <div className="print-footer">
+            <span>Prepared with AI assistance. Always consult your doctor for medical advice.</span>
+          </div>
+        </div>
+      )}
 
     </div>
   );

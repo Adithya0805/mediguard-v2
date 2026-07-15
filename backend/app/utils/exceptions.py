@@ -117,6 +117,18 @@ class LLMException(MediGuardException):
         )
 
 
+class FHIRImportException(MediGuardException):
+    """Raised when querying public FHIR systems fails."""
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            message=message,
+            error_code="FHIR_IMPORT_FAILED",
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            details=details
+        )
+
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     """Registers standard, structured global exception hooks for FastAPI."""
     

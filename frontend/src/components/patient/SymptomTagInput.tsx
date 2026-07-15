@@ -9,6 +9,7 @@ interface SymptomTagInputProps {
   placeholder?: string;
   label?: string;
   error?: string;
+  highlightAmber?: boolean;
 }
 
 export default function SymptomTagInput({
@@ -16,7 +17,8 @@ export default function SymptomTagInput({
   onChange,
   placeholder = 'Type item and press Enter or comma...',
   label,
-  error
+  error,
+  highlightAmber
 }: SymptomTagInputProps) {
   const [inputValue, setInputValue] = useState('');
 
@@ -50,7 +52,12 @@ export default function SymptomTagInput({
       )}
 
       {/* Input container box with chips inside */}
-      <div className="min-h-12 w-full flex flex-wrap gap-2 p-2 rounded-xl bg-background border border-border focus-within:border-primary transition-colors">
+      <div className={`min-h-12 w-full flex flex-wrap gap-2 p-2 rounded-xl bg-background transition-colors ${
+        highlightAmber
+          ? 'border border-amber-500/60 shadow-[0_0_8px_rgba(245,158,11,0.15)] focus-within:border-amber-500'
+          : 'border border-border focus-within:border-primary'
+      }`}>
+
         
         {/* Render chips */}
         {tags.map((tag, idx) => (
