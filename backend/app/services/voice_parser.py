@@ -180,7 +180,12 @@ Return this exact JSON structure:
         - Clean medication list
         - Update confidence notes
         """
-        notes: list[str] = [parsed_data.get("parser_notes", "")]
+        existing_notes = parsed_data.get("parser_notes", "")
+        if isinstance(existing_notes, list):
+            existing_notes = " | ".join(str(n) for n in existing_notes if n)
+        elif not isinstance(existing_notes, str):
+            existing_notes = str(existing_notes) if existing_notes else ""
+        notes: list[str] = [existing_notes]
         red_flag_detected = False
 
         # Check red flags against symptoms + chief complaint text
@@ -208,8 +213,8 @@ Return this exact JSON structure:
                 clean_meds.append(med.strip())
         parsed_data["current_medications"] = clean_meds
 
-        # Join notes
-        merged_notes = " | ".join(n for n in notes if n.strip())
+        # Join notes safely
+        merged_notes = " | ".join(str(n) for n in notes if n and str(n).strip())
         parsed_data["parser_notes"] = merged_notes
         parsed_data["red_flags_detected"] = red_flag_detected
 
@@ -292,6 +297,13 @@ Return this exact JSON structure:
             data["extraction_confidence"] = max(0.0, min(1.0, conf))
         except (TypeError, ValueError):
             data["extraction_confidence"] = 0.0
+
+        # Ensure parser_notes is a string (LLM sometimes returns a list)
+        notes_val = data.get("parser_notes", "")
+        if isinstance(notes_val, list):
+            data["parser_notes"] = " | ".join(str(n) for n in notes_val if n)
+        elif not isinstance(notes_val, str):
+            data["parser_notes"] = str(notes_val) if notes_val else ""
 
         return data
 

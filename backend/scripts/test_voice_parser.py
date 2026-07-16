@@ -1,5 +1,5 @@
 """
-MediGuard V2 — Voice Parser Test Script
+MediGuard V2 -- Voice Parser Test Script
 Day 6: Validates clinical NLP extraction with 5 real-world transcripts
 
 Run from backend/:
@@ -9,6 +9,14 @@ Run from backend/:
 import asyncio
 import sys
 import os
+
+# Force UTF-8 output on Windows to handle unicode in print statements
+if sys.stdout.encoding != 'utf-8':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except Exception:
+        import io
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -169,7 +177,7 @@ async def run_tests():
         name = test["name"]
         expect = test["expect"]
 
-        print(f"\n🎙️  {name}")
+        print(f"\n[TEST] {name}")
         print(f"   Transcript: '{transcript[:90]}{'...' if len(transcript) > 90 else ''}'")
 
         try:
