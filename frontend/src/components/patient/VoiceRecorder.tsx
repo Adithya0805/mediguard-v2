@@ -54,6 +54,18 @@ export default function VoiceRecorder({ onParsed, existingFormData, onClose }: V
   const [parseResult, setParseResult] = useState<VoiceParseResult | null>(null);
   const [parsingStage, setParsingStage] = useState('');
 
+  const parsedData = (parseResult?.parsed_data || {}) as any;
+  const summaryItems: Array<[string, string, string]> = parseResult ? [
+    ['patient_name', 'Name', (parsedData.patient_name as string) || ''],
+    ['patient_age', 'Age', Number(parsedData.patient_age) > 0 ? String(parsedData.patient_age) : ''],
+    ['patient_gender', 'Gender', (parsedData.patient_gender as string) || ''],
+    ['chief_complaint', 'Complaint', parsedData.chief_complaint ? '✓ filled' : ''],
+    ['symptoms', 'Symptoms', Array.isArray(parsedData.symptoms) ? `${parsedData.symptoms.length} found` : ''],
+    ['current_medications', 'Medications', Array.isArray(parsedData.current_medications) ? `${parsedData.current_medications.length} found` : ''],
+    ['medical_history', 'History', Array.isArray(parsedData.medical_history) ? `${parsedData.medical_history.length} found` : ''],
+    ['allergies', 'Allergies', Array.isArray(parsedData.allergies) ? `${parsedData.allergies.length} found` : ''],
+  ] : [];
+
   const formatDuration = (secs: number): string => {
     const m = Math.floor(secs / 60);
     const s = secs % 60;
@@ -354,37 +366,29 @@ export default function VoiceRecorder({ onParsed, existingFormData, onClose }: V
                 Fields Extracted ({parseResult.fields_extracted.length} found)
               </p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
-                {[
-                  ['patient_name', 'Name', parseResult.parsed_data?.patient_name as string],
-                  ['patient_age', 'Age', parseResult.parsed_data?.patient_age as number > 0 ? String(parseResult.parsed_data.patient_age) : ''],
-                  ['patient_gender', 'Gender', parseResult.parsed_data?.patient_gender as string],
-                  ['chief_complaint', 'Complaint', parseResult.parsed_data?.chief_complaint as string ? '✓ filled' : ''],
-                  ['symptoms', 'Symptoms', Array.isArray(parseResult.parsed_data?.symptoms) ? `${(parseResult.parsed_data.symptoms as unknown[]).length} found` : ''],
-                  ['current_medications', 'Medications', Array.isArray(parseResult.parsed_data?.current_medications) ? `${(parseResult.parsed_data.current_medications as unknown[]).length} found` : ''],
-                  ['medical_history', 'History', Array.isArray(parseResult.parsed_data?.medical_history) ? `${(parseResult.parsed_data.medical_history as unknown[]).length} found` : ''],
-                  ['allergies', 'Allergies', Array.isArray(parseResult.parsed_data?.allergies) ? `${(parseResult.parsed_data.allergies as unknown[]).length} found` : ''],
-                ].map(([key, label, value]) => {
-                  const found = parseResult.fields_extracted.includes(key as string) || (value && String(value) !== '0');
+                {summaryItems.map(([key, label, value]: [string, string, string]) => {
+                  const found = parseResult.fields_extracted.includes(key) || (value && String(value) !== '');
                   return (
-                    <div key={key as string} className="flex items-center gap-1.5 text-[11px]">
+                    <div key={key} className="flex items-center gap-1.5 text-[11px]">
                       <span className={found ? 'text-emerald-400' : 'text-text-muted'}>
                         {found ? '✓' : '✗'}
                       </span>
-                      <span className="text-text-secondary font-medium">{label as string}:</span>
+                      <span className="text-text-secondary font-medium">{label}:</span>
                       <span className={`truncate ${found ? 'text-text-primary' : 'text-text-muted italic'}`}>
-                        {found ? (value as string || 'found') : 'not found'}
+                        {found ? (value || 'found') : 'not found'}
                       </span>
                     </div>
                   );
                 })}
               </div>
+            </div>
 
               {/* Vitals summary */}
-              {parseResult.parsed_data?.vitals && typeof parseResult.parsed_data.vitals === 'object' && (
+              {parsedData.vitals && typeof parsedData.vitals === 'object' && (
                 <div className="mt-3 pt-3 border-t border-border/50">
                   <p className="text-[10px] text-text-muted font-semibold uppercase tracking-wide mb-1.5">Vitals</p>
                   <div className="flex flex-wrap gap-2">
-                    {Object.entries(parseResult.parsed_data.vitals as Record<string, unknown>).map(([k, v]) => 
+                    {Object.entries(parsedData.vitals).map(([k, v]) => 
                       v && v !== 0 ? (
                         <span key={k} className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-mono">
                           {k}: {String(v)}
@@ -394,7 +398,6 @@ export default function VoiceRecorder({ onParsed, existingFormData, onClose }: V
                   </div>
                 </div>
               )}
-            </div>
 
             {/* Red flag warning */}
             {parseResult.red_flags_detected && parseResult.parser_notes && (

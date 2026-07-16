@@ -47,6 +47,7 @@ export interface DDxEntry {
   rank: number;
   diagnosis: string;
   icd10_code: string;
+  icd_10?: string; // fallback code property
   confidence: number;
   urgency: UrgencyLevel;
   clinical_reasoning: string;
@@ -86,6 +87,7 @@ export interface ClinicalReportResponse {
   drug_interactions_found: DrugInteraction[];
   clinical_summary: string;
   urgency_level: UrgencyLevel;
+  urgency_assessment?: string; // fallback detail field
   report_pdf_url: string | null;
   fhir_bundle: Record<string, unknown> | null;
   reviewed_by_agent: string;
