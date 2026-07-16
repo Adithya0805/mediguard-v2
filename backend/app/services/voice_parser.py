@@ -22,47 +22,55 @@ logger = get_logger("app.services.voice_parser")
 _RED_FLAG_PATTERNS: list[dict] = [
     {
         "keywords": ["chest pain", "radiation"],
-        "flag": "⚠️ RED FLAG DETECTED: Possible ACS/STEMI presentation (chest pain + radiation). Immediate ECG and cardiac workup recommended.",
+        "flag": "[ALERT] RED FLAG DETECTED: Possible ACS/STEMI presentation (chest pain + radiation). Immediate ECG and cardiac workup recommended.",
     },
     {
         "keywords": ["chest pain", "diaphoresis"],
-        "flag": "⚠️ RED FLAG DETECTED: Possible ACS presentation (chest pain + diaphoresis). Immediate review recommended.",
+        "flag": "[ALERT] RED FLAG DETECTED: Possible ACS presentation (chest pain + diaphoresis). Immediate review recommended.",
     },
     {
         "keywords": ["severe headache", "visual"],
-        "flag": "⚠️ RED FLAG DETECTED: Possible stroke or hypertensive emergency (severe headache + visual changes). Immediate neurological review recommended.",
+        "flag": "[ALERT] RED FLAG DETECTED: Possible stroke or hypertensive emergency (severe headache + visual changes). Immediate neurological review recommended.",
     },
     {
         "keywords": ["difficulty breathing", "spo2"],
-        "flag": "⚠️ RED FLAG DETECTED: Possible respiratory emergency (dyspnea + low SpO2). Immediate airway/O2 assessment required.",
+        "flag": "[ALERT] RED FLAG DETECTED: Possible respiratory emergency (dyspnea + low SpO2). Immediate airway/O2 assessment required.",
     },
     {
         "keywords": ["dyspnea", "spo2"],
-        "flag": "⚠️ RED FLAG DETECTED: Possible respiratory emergency (dyspnea + low SpO2). Immediate airway/O2 assessment required.",
+        "flag": "[ALERT] RED FLAG DETECTED: Possible respiratory emergency (dyspnea + low SpO2). Immediate airway/O2 assessment required.",
     },
     {
         "keywords": ["fever", "neck stiffness"],
-        "flag": "⚠️ RED FLAG DETECTED: Possible meningitis presentation (fever + neck stiffness). Urgent LP and IV antibiotics consideration required.",
+        "flag": "[ALERT] RED FLAG DETECTED: Possible meningitis presentation (fever + neck stiffness). Urgent LP and IV antibiotics consideration required.",
     },
     {
         "keywords": ["fever", "stiff neck"],
-        "flag": "⚠️ RED FLAG DETECTED: Possible meningitis presentation (fever + stiff neck). Urgent LP and IV antibiotics consideration required.",
+        "flag": "[ALERT] RED FLAG DETECTED: Possible meningitis presentation (fever + stiff neck). Urgent LP and IV antibiotics consideration required.",
+    },
+    {
+        "keywords": ["fever", "confusion"],
+        "flag": "[ALERT] RED FLAG DETECTED: Possible meningitis / encephalitis (fever + confusion). Immediate neurological and infectious disease review required.",
+    },
+    {
+        "keywords": ["fever", "rash"],
+        "flag": "[ALERT] RED FLAG DETECTED: Possible meningococcal disease or serious systemic infection (fever + rash). Immediate clinical review recommended.",
     },
     {
         "keywords": ["unilateral weakness", "slurred speech"],
-        "flag": "⚠️ RED FLAG DETECTED: Possible stroke presentation (unilateral weakness + slurred speech). Activate stroke protocol immediately.",
+        "flag": "[ALERT] RED FLAG DETECTED: Possible stroke presentation (unilateral weakness + slurred speech). Activate stroke protocol immediately.",
     },
     {
         "keywords": ["weakness", "facial droop", "speech"],
-        "flag": "⚠️ RED FLAG DETECTED: Possible stroke (weakness + facial droop + speech difficulty). FAST assessment and CT urgently required.",
+        "flag": "[ALERT] RED FLAG DETECTED: Possible stroke (weakness + facial droop + speech difficulty). FAST assessment and CT urgently required.",
     },
     {
         "keywords": ["severe abdominal pain", "rigid"],
-        "flag": "⚠️ RED FLAG DETECTED: Possible acute abdomen (severe pain + rigidity). Immediate surgical consult recommended.",
+        "flag": "[ALERT] RED FLAG DETECTED: Possible acute abdomen (severe pain + rigidity). Immediate surgical consult recommended.",
     },
     {
         "keywords": ["rash", "petechiae"],
-        "flag": "⚠️ RED FLAG DETECTED: Possible meningococcal septicaemia (rash + petechiae). Immediate IV antibiotics and isolation required.",
+        "flag": "[ALERT] RED FLAG DETECTED: Possible meningococcal septicaemia (rash + petechiae). Immediate IV antibiotics and isolation required.",
     },
 ]
 
@@ -159,7 +167,24 @@ Return this exact JSON structure:
                 HumanMessage(content=user_prompt),
             ]
             response = await self.llm.ainvoke(messages)
-            raw = response.content if hasattr(response, "content") else str(response)
+            content = response.content if hasattr(response, "content") else response
+            
+            if isinstance(content, list):
+                parts = []
+                for part in content:
+                    if isinstance(part, str):
+                        parts.append(part)
+                    elif isinstance(part, dict) and "text" in part:
+                        parts.append(part["text"])
+                    elif hasattr(part, "text"):
+                        parts.append(part.text)
+                    elif isinstance(part, dict) and part.get("type") == "text" and "text" in part:
+                        parts.append(part["text"])
+                raw = "".join(parts)
+            elif isinstance(content, str):
+                raw = content
+            else:
+                raw = str(content)
         except Exception as e:
             logger.error("LLM invocation failed in voice parser", error=str(e))
             return self._empty_result(f"LLM error: {str(e)}")

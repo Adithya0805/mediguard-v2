@@ -184,8 +184,13 @@ async def run_tests():
             result = await parser.parse_transcript(transcript)
             result = await parser.validate_and_enhance(result, transcript)
         except Exception as e:
-            print(f"   ❌ EXCEPTION: {e}")
+            import traceback
+            print(f"   [FAIL] EXCEPTION:")
+            traceback.print_exc()
             continue
+
+        # Add sleep to prevent hitting Gemini free tier rate limits (429)
+        await asyncio.sleep(8)
 
         # Summary
         print(f"   Age: {result.get('patient_age')} | "
