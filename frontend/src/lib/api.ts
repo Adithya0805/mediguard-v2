@@ -398,4 +398,50 @@ export async function getAnalyticsAnomalies(): Promise<AnalyticsAnomaly[]> {
   return res.data;
 }
 
+// ── Day 6 — Voice Intake & Smart Symptom Intelligence ─────────────────────────
+
+export interface VoiceParseResult {
+  parsed_data: Record<string, unknown>;
+  extraction_confidence: number;
+  fields_extracted: string[];
+  fields_missing: string[];
+  parser_notes: string;
+  red_flags_detected: boolean;
+  processing_time_ms: number;
+}
+
+export async function parseVoiceTranscript(
+  transcript: string,
+  existingData?: Record<string, unknown>
+): Promise<VoiceParseResult> {
+  const payload: Record<string, unknown> = { transcript };
+  if (existingData) {
+    payload.session_context = { existing_data: existingData };
+  }
+  const res = await api.post<VoiceParseResult>('/api/v1/voice/parse', payload);
+  return res.data;
+}
+
+export interface SymptomSuggestions {
+  autocomplete: Array<{ symptom: string; display: string; match_type: string }>;
+  related_suggestions: Array<{ symptom: string; reason: string; score: number; urgency: string }>;
+  clinical_questions: string[];
+  current_urgency_hint: string;
+  red_flags_detected: Array<{ combination: string[]; warning: string }>;
+}
+
+export async function getSymptomSuggestions(
+  symptoms: string[],
+  q?: string,
+  limit = 8
+): Promise<SymptomSuggestions> {
+  const params = new URLSearchParams();
+  if (symptoms.length) params.set('symptoms', symptoms.join(','));
+  if (q) params.set('q', q);
+  params.set('limit', String(limit));
+  const res = await api.get<SymptomSuggestions>(`/api/v1/symptoms/suggest?${params}`);
+  return res.data;
+}
+
 export default api;
+

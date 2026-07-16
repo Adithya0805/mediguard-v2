@@ -12,9 +12,11 @@ import {
 } from '@/lib/validations';
 import { createSession, generateReport, fetchEhrPatient } from '@/lib/api';
 import SymptomTagInput from './SymptomTagInput';
+import SmartSymptomInput from './SmartSymptomInput';
+import VoiceRecorder from './VoiceRecorder';
 import VitalsInput from './VitalsInput';
 import FHIRImportModal from './FHIRImportModal';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Mic, PenLine, AlertTriangle } from 'lucide-react';
 import { 
   User, 
   HeartPulse, 
@@ -25,12 +27,17 @@ import {
   CheckCircle 
 } from 'lucide-react';
 
+type IntakeMode = 'manual' | 'voice' | 'fhir';
+
 export default function PatientIntakeForm() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFhirModalOpen, setIsFhirModalOpen] = useState(false);
   const [isFhirImported, setIsFhirImported] = useState(false);
+  const [intakeMode, setIntakeMode] = useState<IntakeMode>('manual');
+  const [voiceIntakeComplete, setVoiceIntakeComplete] = useState(false);
+  const [symptomRedFlags, setSymptomRedFlags] = useState<Array<{ combination: string[]; warning: string }>>([]);
 
   const handleFhirImport = (data: any) => {
     setIsFhirImported(true);
@@ -209,36 +216,73 @@ export default function PatientIntakeForm() {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-6 text-left"
             >
-              {/* How would you like to add patient options bar */}
-              <div className="p-4 rounded-xl bg-[#1f2937]/35 border border-border/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <span className="text-xs font-bold text-text-secondary uppercase tracking-wide">Add Patient Record</span>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsFhirImported(false);
-                    }}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
-                      !isFhirImported 
-                        ? 'bg-primary/10 border-primary/30 text-primary shadow-[0_0_8px_rgba(13,148,136,0.15)]' 
-                        : 'bg-background border-border text-text-muted hover:text-text-secondary'
-                    }`}
-                  >
-                    📋 Manual Entry
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsFhirModalOpen(true)}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
-                      isFhirImported 
-                        ? 'bg-primary/10 border-primary/30 text-primary shadow-[0_0_8px_rgba(13,148,136,0.15)]' 
-                        : 'bg-background border-border text-text-muted hover:text-text-secondary'
-                    }`}
-                  >
-                    🏥 Import FHIR
-                  </button>
+              {/* Mode Selector: Voice / Manual / FHIR */}
+              <div className="p-4 rounded-xl bg-[#1f2937]/35 border border-border/80">
+                <span className="text-xs font-bold text-text-secondary uppercase tracking-wide block mb-3">How to add patient information?</span>
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    { id: 'voice', label: '🎙️ Voice Intake', desc: 'Speak naturally' },
+                    { id: 'manual', label: '✏️ Manual Entry', desc: 'Type fields manually' },
+                    { id: 'fhir', label: '🏥 Import FHIR', desc: 'From FHIR server' },
+                  ] as { id: IntakeMode; label: string; desc: string }[]).map((mode) => (
+                    <button
+                      key={mode.id}
+                      type="button"
+                      onClick={() => {
+                        setIntakeMode(mode.id);
+                        if (mode.id === 'fhir') setIsFhirModalOpen(true);
+                        if (mode.id !== 'voice') setVoiceIntakeComplete(false);
+                      }}
+                      className={`flex flex-col px-4 py-2.5 rounded-xl text-xs font-bold border transition-all ${
+                        intakeMode === mode.id
+                          ? 'bg-primary/10 border-primary/30 text-primary shadow-[0_0_8px_rgba(13,148,136,0.15)]'
+                          : 'bg-background border-border text-text-muted hover:text-text-secondary'
+                      }`}
+                    >
+                      <span>{mode.label}</span>
+                      <span className="text-[9px] font-normal opacity-70">{mode.desc}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
+
+              {/* Voice Recorder */}
+              {intakeMode === 'voice' && !voiceIntakeComplete && (
+                <VoiceRecorder
+                  onParsed={(parsedData) => {
+                    const pd = parsedData as Record<string, unknown>;
+                    if (pd.patient_name) setValue('patient_name', pd.patient_name as string);
+                    if (pd.patient_age && Number(pd.patient_age) > 0) setValue('age', Number(pd.patient_age));
+                    if (pd.patient_gender) setValue('gender', pd.patient_gender as 'male' | 'female' | 'other');
+                    if (pd.chief_complaint) setValue('chief_complaint', pd.chief_complaint as string);
+                    if (Array.isArray(pd.symptoms) && pd.symptoms.length > 0) setValue('symptoms', pd.symptoms as string[]);
+                    if (Array.isArray(pd.medical_history)) setValue('medical_history', pd.medical_history as string[]);
+                    if (Array.isArray(pd.allergies)) setValue('allergies', pd.allergies as string[]);
+                    if (Array.isArray(pd.current_medications)) setValue('current_medications', pd.current_medications as string[]);
+                    const vitals = pd.vitals as Record<string, unknown>;
+                    if (vitals) {
+                      setValue('vitals', {
+                        bp: (vitals.bp as string) || '',
+                        heart_rate: vitals.heart_rate ? Number(vitals.heart_rate) : undefined,
+                        temperature: vitals.temperature ? Number(vitals.temperature) : undefined,
+                        spo2: vitals.spo2 ? Number(vitals.spo2) : undefined,
+                        weight: vitals.weight ? Number(vitals.weight) : undefined,
+                        height: vitals.height ? Number(vitals.height) : undefined,
+                      });
+                    }
+                    setVoiceIntakeComplete(true);
+                    setIntakeMode('manual'); // Switch to manual to review
+                    setStep(2); // Skip to symptoms step
+                  }}
+                />
+              )}
+
+              {voiceIntakeComplete && (
+                <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400 leading-normal flex items-start gap-2.5 font-sans">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-emerald-500" />
+                  <span><b>✅ Voice intake complete.</b> Please review and add any missing information. Fields have been pre-filled from your voice description.</span>
+                </div>
+              )}
 
               {isFhirImported && (
                 <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400 leading-normal flex items-start gap-2.5 font-sans">
@@ -402,18 +446,37 @@ export default function PatientIntakeForm() {
                 <span className="text-xs text-text-secondary mt-0.5">Input precise clinical symptoms, comorbidities, and allergy profiles.</span>
               </div>
 
-              {/* Active Symptoms tag input */}
+              {/* Red flag warning from SmartSymptomInput */}
+              {symptomRedFlags.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/40 flex items-start gap-2.5"
+                >
+                  <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold text-amber-400">⚠️ Clinical alert detected. Please review before proceeding.</p>
+                    {symptomRedFlags.map((f, i) => (
+                      <p key={i} className="text-[11px] text-amber-300/70">{f.warning.replace(/⚠️\s*/g, '')}</p>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Smart Symptom Input — replaces SymptomTagInput for active symptoms */}
               <Controller
                 name="symptoms"
                 control={control}
                 render={({ field }) => (
-                  <SymptomTagInput
+                  <SmartSymptomInput
                     tags={field.value || []}
-                    onChange={field.onChange}
+                    onChange={(newTags) => {
+                      field.onChange(newTags);
+                    }}
                     label="Active Clinical Symptoms (Min 1 required)"
                     placeholder="Type symptom (e.g. chest pain) and press Enter..."
                     error={errors.symptoms?.message}
-                    highlightAmber={isFhirImported && currentSymptoms.length === 0}
+                    highlightAmber={(isFhirImported || voiceIntakeComplete) && currentSymptoms.length === 0}
                   />
                 )}
               />
