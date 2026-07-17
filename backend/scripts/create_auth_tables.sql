@@ -128,7 +128,49 @@ CREATE POLICY select_institution_audit ON auth_audit_log
         )
     );
 
+
+-- 8. EVALUATION REPORTS TABLE
+CREATE TABLE IF NOT EXISTS eval_reports (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    evaluation_id TEXT UNIQUE NOT NULL,
+    total_cases INTEGER NOT NULL,
+    passed_cases INTEGER NOT NULL,
+    failed_cases INTEGER NOT NULL,
+    pass_rate NUMERIC NOT NULL,
+    recommendation TEXT NOT NULL,
+    run_mode TEXT NOT NULL CHECK (run_mode IN ('mock', 'live')),
+    results_json JSONB DEFAULT '{}',
+    summary_report TEXT,
+    triggered_by UUID REFERENCES clinical_staff(id) ON DELETE SET NULL,
+    institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE
+);
+
+-- Enable RLS for eval_reports
+ALTER TABLE eval_reports ENABLE ROW LEVEL SECURITY;
+
+-- Admins and staff can view safety reports for their institution
+CREATE POLICY select_institution_evals ON eval_reports
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM clinical_staff AS cs
+            WHERE cs.id = auth.uid()
+              AND cs.institution_id = eval_reports.institution_id
+        )
+    );
+
+-- Admins and trigger systems can insert eval reports
+CREATE POLICY insert_institution_evals ON eval_reports
+    FOR INSERT WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM clinical_staff AS cs
+            WHERE cs.id = auth.uid()
+              AND cs.institution_id = eval_reports.institution_id
+        )
+    );
+
 -- 7. SEED DATA - INITIAL DEMO INSTITUTION
 INSERT INTO institutions (institution_code, institution_name, institution_type, city, state, max_staff_accounts)
 VALUES ('MEDIGUARD-DEMO-001', 'MediGuard Demo Hospital', 'hospital', 'Chennai', 'Tamil Nadu', 50)
 ON CONFLICT (institution_code) DO NOTHING;
+

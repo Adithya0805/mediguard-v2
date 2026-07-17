@@ -43,3 +43,10 @@ python-dotenv==1.0.1
 
 # ── Observability / Logging ───────────────────────────────────────────────────
 structlog==24.2.0
+
+# ── Safety Evaluation ─────────────────────────────────────────────────────────
+deepeval==4.1.1
+pytest==8.4.2
+pytest-asyncio==0.23.7
+pytest-timeout==2.4.0
+

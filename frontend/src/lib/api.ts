@@ -443,5 +443,41 @@ export async function getSymptomSuggestions(
   return res.data;
 }
 
+// ── Day 7 — Safety Evaluation Pipeline ─────────────────────────────────────────
+
+export interface EvalReportRecord {
+  id: string;
+  created_at: string;
+  evaluation_id: string;
+  total_cases: number;
+  passed_cases: number;
+  failed_cases: number;
+  pass_rate: number;
+  recommendation: string;
+  run_mode: 'mock' | 'live';
+  results_json: Record<string, any>;
+  summary_report: string;
+  triggered_by?: string;
+  institution_id: string;
+}
+
+export async function getSafetyReports(): Promise<EvalReportRecord[]> {
+  const res = await api.get<EvalReportRecord[]>('/api/v1/admin/safety-report');
+  return res.data;
+}
+
+export async function runSafetyEvaluation(mode: 'mock' | 'live' = 'mock'): Promise<{
+  status: string;
+  message: string;
+  report: EvalReportRecord;
+}> {
+  const res = await api.post<{
+    status: string;
+    message: string;
+    report: EvalReportRecord;
+  }>(`/api/v1/admin/run-eval?mode=${mode}`);
+  return res.data;
+}
+
 export default api;
 

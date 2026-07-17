@@ -45,6 +45,10 @@ jobs:
     - name: Run Unit Tests (Collect Only)
       run: pytest tests/ -v --tb=short --co
 
+    - name: Run Clinical Safety Evaluation Pipeline (Mock Mode)
+      run: python evals/run_eval.py --use-mock
+
+
   # ── JOB 2: Frontend Verification ────────────────────────────────────────────
   frontend-build:
     runs-on: ubuntu-latest

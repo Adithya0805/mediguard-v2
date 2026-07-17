@@ -16,7 +16,8 @@ _mock_db: Dict[str, List[Dict[str, Any]]] = {
     "institutions": [],
     "clinical_staff": [],
     "auth_sessions": [],
-    "auth_audit_log": []
+    "auth_audit_log": [],
+    "eval_reports": []
 }
 
 

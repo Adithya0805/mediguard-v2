@@ -183,13 +183,23 @@ export default function AdminPage() {
               Admin Portal / {staff.institution_name}
             </p>
           </div>
-          <button
-            onClick={handleOpenAddModal}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#0d9488] text-white font-semibold text-sm hover:bg-[#0d9488]/90 transition-all shadow-[0_0_12px_rgba(13,148,136,0.2)] focus:outline-none"
-          >
-            <Plus className="h-4.5 w-4.5" />
-            <span>Add New Staff</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push('/admin/safety')}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#1e1b4b] text-white border border-[#4338ca] font-semibold text-sm hover:bg-[#1e1b4b]/80 transition-all shadow-[0_0_12px_rgba(67,56,202,0.2)] focus:outline-none"
+            >
+              <ShieldCheck className="h-4.5 w-4.5 text-[#818cf8]" />
+              <span>Safety Dashboard</span>
+            </button>
+            <button
+              onClick={handleOpenAddModal}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#0d9488] text-white font-semibold text-sm hover:bg-[#0d9488]/90 transition-all shadow-[0_0_12px_rgba(13,148,136,0.2)] focus:outline-none"
+            >
+              <Plus className="h-4.5 w-4.5" />
+              <span>Add New Staff</span>
+            </button>
+          </div>
+
         </div>
 
         {/* Section 1: Overview Statistics */}
