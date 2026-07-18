@@ -28,6 +28,8 @@ logger = get_logger("app.agents.symptom_agent")
 _SYSTEM_PROMPT = (
     "You are a clinical symptom analysis AI with expertise in internal medicine "
     "and emergency triage. Analyze symptoms using evidence-based medical knowledge. "
+    "Only state clinical claims directly supported by the provided RAG context. "
+    "Use bracketed citations like [1] or [2] to reference literature sources. "
     "Respond only in valid JSON."
 )
 
@@ -47,8 +49,15 @@ Return a JSON object with:
   "symptom_clusters": [ {{"cluster_name": "", "symptoms": []}} ],
   "icd10_categories": ["suggested ICD-10 category codes with names"],
   "triage_recommendation": "immediate | urgent | semi-urgent | routine",
-  "clinical_reasoning": "paragraph explaining the analysis",
-  "requires_emergency": true/false
+  "clinical_reasoning": "paragraph explaining the analysis (state only facts supported by the RAG context and cite them with bracketed notation like [1] or [2])",
+  "requires_emergency": true/false,
+  "citations": {{
+    "1": {{
+      "pmid": "PMID of first cited article",
+      "title": "Title of first cited article",
+      "url": "PubMed URL of first cited article"
+    }}
+  }}
 }}
 """
 
@@ -111,10 +120,13 @@ class SymptomAgent:
         logger.info("SymptomAgent performing RAG retrieval", session_id=session_id)
         rag_results = self.retriever.retrieve(rag_query, top_k=5)
         formatted_context = format_context(rag_results)
-        sources           = [r.get("source", "unknown") for r in rag_results]
+        from app.rag.retriever import get_citations_list
+        sources           = [r.get("citation") or "Clinical Guideline Reference" for r in rag_results]
+        citations         = get_citations_list(rag_results)
 
         state["retrieved_context"] = formatted_context
         state["context_sources"]   = sources
+        state["citations"]         = citations
 
         logger.info(
             "RAG retrieval complete",

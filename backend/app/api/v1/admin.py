@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, HTTPException, status
+from fastapi import APIRouter, Depends, Query, HTTPException, status, BackgroundTasks
 from typing import Dict, Any, List
 import uuid
 import asyncio
@@ -80,3 +80,53 @@ async def run_safety_evaluation(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Safety evaluation execution failed: {str(e)}"
         )
+
+
+@router.post("/ingest-rag")
+async def trigger_rag_ingestion(
+    background_tasks: BackgroundTasks,
+    topic: str = Query(default="quick", regex="^(quick|priority|full)$"),
+    current_staff: TokenData = Depends(get_current_staff),
+    db = Depends(get_db)
+):
+    """Triggers the PubMed literature ingestion pipeline in the background."""
+    if current_staff.role not in ["admin", "superadmin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: Admin role required to run ingestion."
+        )
+        
+    async def run_ingestion_async():
+        from app.rag.pubmed_ingestion import PubMedIngestionPipeline
+        from app.data.pubmed_search_queries import SEARCH_TOPICS
+        
+        pipeline = PubMedIngestionPipeline()
+        
+        # Decide topic configurations to ingest based on flag
+        if topic == "quick":
+            selected_topics = SEARCH_TOPICS[:2]
+            max_results = 1
+        elif topic == "priority":
+            selected_topics = [t for t in SEARCH_TOPICS if t.get("priority", "medium") == "high"]
+            max_results = 3
+        else:
+            selected_topics = SEARCH_TOPICS
+            max_results = 5
+            
+        try:
+            for topic_config in selected_topics:
+                # Set specific limits
+                topic_config_with_limit = dict(topic_config)
+                topic_config_with_limit["max_per_query"] = max_results
+                await pipeline.ingest_topic(topic_config_with_limit, max_results=max_results)
+        except Exception as e:
+            from app.utils.logger import get_logger
+            logger = get_logger("app.api.v1.admin")
+            logger.error("Background ingestion failed", error=str(e))
+            
+    background_tasks.add_task(run_ingestion_async)
+    
+    return {
+        "status": "processing",
+        "message": f"PubMed ingestion pipeline started in background for mode: {topic.upper()}."
+    }

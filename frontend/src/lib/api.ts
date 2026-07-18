@@ -479,5 +479,40 @@ export async function runSafetyEvaluation(mode: 'mock' | 'live' = 'mock'): Promi
   return res.data;
 }
 
+export interface RagStatusResponse {
+  status: 'online' | 'offline';
+  index_name: string;
+  dimension: number;
+  namespaces: {
+    [key: string]: {
+      name: string;
+      vector_count: number;
+      description: string;
+    }
+  };
+  ingestion_stats: {
+    last_ingested_topic: string;
+    last_ingestion_timestamp: string;
+    total_topics_available: number;
+    priority_topics_count: number;
+  };
+}
+
+export async function getRagStatus(): Promise<RagStatusResponse> {
+  const res = await api.get<RagStatusResponse>('/api/v1/analytics/rag/status');
+  return res.data;
+}
+
+export async function runRagIngestion(topic: 'quick' | 'priority' | 'full' = 'quick'): Promise<{
+  status: string;
+  message: string;
+}> {
+  const res = await api.post<{
+    status: string;
+    message: string;
+  }>(`/api/v1/admin/ingest-rag?topic=${topic}`);
+  return res.data;
+}
+
 export default api;
 

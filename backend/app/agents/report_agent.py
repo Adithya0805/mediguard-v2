@@ -28,7 +28,9 @@ _SYSTEM_PROMPT = (
     "You are a clinical documentation AI. Synthesise the multi-agent analysis "
     "into a comprehensive, professional clinical decision support report. "
     "Write for a physician audience. Be precise, evidence-based, and clinically "
-    "actionable. Respond only in valid JSON."
+    "actionable. Only state clinical claims directly supported by the RAG context and agent findings. "
+    "Use bracketed citations like [1] or [2] to reference literature sources. "
+    "Respond only in valid JSON."
 )
 
 # ── User prompt template ──────────────────────────────────────────────────────
@@ -45,12 +47,12 @@ Sources: {context_sources}
 
 Return a JSON object with:
 {{
-  "executive_summary": "3-4 sentence summary for physician",
-  "clinical_narrative": "full clinical narrative paragraph",
+  "executive_summary": "3-4 sentence summary for physician (include bracketed citations like [1] where appropriate)",
+  "clinical_narrative": "full clinical narrative paragraph (must include bracketed citations like [1] or [2] referencing the medical literature)",
   "primary_impression": "primary diagnosis with confidence",
-  "differential_summary": "ranked DDx summary paragraph",
+  "differential_summary": "ranked DDx summary paragraph (must include bracketed citations like [1] or [2])",
   "recommended_workup": ["ordered list of recommended tests"],
-  "medication_notes": "summary of drug interaction findings",
+  "medication_notes": "summary of drug interaction findings (include citations like [1] for drug labels if applicable)",
   "urgency_assessment": "clinical justification of urgency level",
   "disposition_recommendation": "discharge / admit / urgent referral / etc",
   "follow_up_instructions": ["list of follow-up actions"],
@@ -64,6 +66,13 @@ Return a JSON object with:
     "generation_time_seconds": 0,
     "model_used": "",
     "rag_sources_count": 0
+  }},
+  "citations": {{
+    "1": {{
+      "pmid": "PMID of first cited article",
+      "title": "Title of first cited article",
+      "url": "PubMed URL of first cited article"
+    }}
   }}
 }}
 """

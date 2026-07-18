@@ -525,6 +525,34 @@ class ClinicalPDFGenerator:
             for idx, inst in enumerate(follow_ups):
                 elements.append(Paragraph(f"<b>{idx+1}.</b> {inst}", self.BodyText))
 
+        # 8.5 References / Citations
+        citations = report_data.get('citations', [])
+        if citations:
+            self._add_section_header("SECTION 11 — REFERENCES", elements)
+            for idx, c in enumerate(citations, 1):
+                citation_num = c.get("citation_number", idx)
+                citation_text = c.get("citation")
+                pmid = c.get("pmid")
+                url = c.get("url")
+                
+                ref_line = f"<b>[{citation_num}]</b> "
+                if citation_text:
+                    ref_line += f"{citation_text}"
+                else:
+                    title = c.get("title", "Clinical Reference")
+                    authors = c.get("authors", "Unknown")
+                    journal = c.get("journal", "")
+                    year = c.get("year", "")
+                    ref_line += f"{authors}. {title}. {journal} ({year})."
+                
+                if pmid:
+                    ref_line += f" PMID: {pmid}."
+                if url:
+                    ref_line += f" <font color='#0d7377'><u>{url}</u></font>"
+                
+                elements.append(Paragraph(ref_line, self.BodyText))
+            elements.append(Spacer(1, 6))
+
         # 9. Disclaimers
         self._add_section_header("CLINICAL DISCLAIMERS", elements)
         bullet_text = "• <i>This system is a clinical decision support helper. Medical judgment remains the sole responsibility of the clinician.</i><br/>"

@@ -34,6 +34,7 @@ class AgentState(TypedDict):
     # ── RAG context (injected before / during diagnosis) ─────────────────────
     retrieved_context:      str             # Formatted RAG result string
     context_sources:        List[str]       # Source citation strings
+    citations:              List[Dict[str, Any]] # Raw citation metadata dicts
 
     # ── Diagnosis agent output ───────────────────────────────────────────────
     differential_diagnosis: List[Dict[str, Any]]  # Ranked DDx list
@@ -94,6 +95,7 @@ def build_initial_state(session_id: str, patient_data: Dict[str, Any]) -> AgentS
         # RAG
         retrieved_context="",
         context_sources=[],
+        citations=[],
 
         # Diagnosis
         differential_diagnosis=[],

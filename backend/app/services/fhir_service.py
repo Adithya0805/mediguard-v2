@@ -91,7 +91,8 @@ class FHIRBundleGenerator:
             "type": "document",
             "timestamp": utc_now,
             "entry": entries,
-            "fda_data_used": report_data.get("fda_data_used", False)
+            "fda_data_used": report_data.get("fda_data_used", False),
+            "_citations": report_data.get("citations", [])
         }
 
         logger.info("FHIR R4 bundle compiled successfully.", session_id=session_id, resources_count=len(entries))

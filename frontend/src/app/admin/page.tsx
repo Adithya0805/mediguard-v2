@@ -17,6 +17,7 @@ import {
   Building2, Users, FileText, Plus, ShieldCheck, 
   ShieldAlert, Shield, X, Eye, EyeOff, ClipboardList, RotateCcw
 } from 'lucide-react';
+import CitationsPanel from '@/components/dashboard/CitationsPanel';
 
 export default function AdminPage() {
   const router = useRouter();
@@ -327,6 +328,9 @@ export default function AdminPage() {
             </div>
           )}
         </div>
+
+        {/* Section 2.5: RAG Citations Control Panel */}
+        <CitationsPanel />
 
         {/* Section 3: Auth Audit Log table */}
         <div className="p-6 rounded-2xl bg-[#111827] border border-border/80 flex flex-col gap-4">

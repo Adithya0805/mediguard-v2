@@ -33,7 +33,9 @@ logger = get_logger("app.agents.drug_agent")
 _SYSTEM_PROMPT = (
     "You are a clinical pharmacology AI specialising in drug interaction analysis. "
     "Check for interactions systematically. Safety is paramount — err on the side "
-    "of caution. Respond only in valid JSON."
+    "of caution. Only state clinical claims directly supported by the provided FDA data or medical knowledge context. "
+    "Use bracketed citations like [1] or [2] to reference literature or label sources. "
+    "Respond only in valid JSON."
 )
 
 # ── User prompt template ──────────────────────────────────────────────────────
@@ -53,7 +55,7 @@ Return a JSON object with:
       "drug_a": "",
       "drug_b": "",
       "severity": "mild | moderate | severe | contraindicated",
-      "mechanism": "brief pharmacological explanation",
+      "mechanism": "brief pharmacological explanation (use bracketed citations like [1])",
       "clinical_effect": "what happens clinically",
       "management": "how to manage this interaction"
     }}
@@ -65,10 +67,17 @@ Return a JSON object with:
       "risk": "description of risk"
     }}
   ],
-  "contraindications": ["list of specific contraindications found"],
+  "contraindications": ["list of specific contraindications found, citing sources like [1]"],
   "overall_medication_safe": true/false,
   "pharmacist_review_required": true/false,
-  "safety_notes": ["important safety notes"]
+  "safety_notes": ["important safety notes (with citations like [1])"],
+  "citations": {{
+    "1": {{
+      "pmid": "PMID or source identifier",
+      "title": "Title of source",
+      "url": "URL of source"
+    }}
+  }}
 }}
 """
 
@@ -99,7 +108,7 @@ Using the FDA data above, return JSON:
       "mechanism": "brief pharmacological explanation of the interaction, citing real FDA data",
       "clinical_effect": "clinical outcome description",
       "management": "management instructions",
-      "fda_cited": true/false,
+      "fda_cited": true,
       "fda_source": "FDA drug label - [drug name]"
     }}
   ],
@@ -113,8 +122,15 @@ Using the FDA data above, return JSON:
   "contraindications": ["list of specific contraindications found, citing real FDA data"],
   "overall_medication_safe": true/false,
   "pharmacist_review_required": true/false,
-  "safety_notes": ["important safety notes"],
-  "fda_data_used": true
+  "safety_notes": ["important safety notes citing FDA data"],
+  "fda_data_used": true,
+  "citations": {{
+    "1": {{
+      "pmid": "FDA label or source ID",
+      "title": "FDA Drug Label warning section",
+      "url": "https://open.fda.gov"
+    }}
+  }}
 }}
 """
 

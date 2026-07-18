@@ -28,6 +28,8 @@ logger = get_logger("app.agents.diagnosis_agent")
 _SYSTEM_PROMPT = (
     "You are an expert clinical diagnostician AI trained on evidence-based medicine. "
     "Generate a rigorous differential diagnosis. "
+    "Only state clinical claims or reasoning directly supported by the provided RAG medical knowledge context. "
+    "Use bracketed citations like [1] or [2] to reference literature sources. "
     "Consider common conditions first (horses before zebras), but do not miss serious "
     "or life-threatening conditions. Every diagnosis must have evidence-based reasoning. "
     "Respond only in valid JSON."
@@ -54,15 +56,31 @@ Return a JSON object with:
       "confidence": 0.0,
       "supporting_evidence": ["list of symptoms/findings supporting this"],
       "against_evidence": ["list of findings that argue against this"],
-      "clinical_reasoning": "detailed reasoning paragraph",
+      "clinical_reasoning": "detailed reasoning paragraph (cite RAG context with bracketed notation like [1])",
       "urgency": "immediate | urgent | semi-urgent | routine"
     }}
   ],
-  "primary_diagnosis": {{ "same structure as above, rank 1" }},
+  "primary_diagnosis": {{
+    "rank": 1,
+    "diagnosis": "Full diagnosis name",
+    "icd10_code": "X00.0",
+    "confidence": 0.0,
+    "supporting_evidence": [],
+    "against_evidence": [],
+    "clinical_reasoning": "detailed reasoning paragraph (cite RAG context with bracketed notation like [1])",
+    "urgency": "immediate | urgent | semi-urgent | routine"
+  }},
   "recommended_tests": ["ordered list of diagnostic tests"],
   "recommended_specialists": ["specialties to refer to if needed"],
   "overall_urgency": "low | medium | high | critical",
-  "clinical_summary": "comprehensive paragraph for the report"
+  "clinical_summary": "comprehensive summary paragraph for the report (must include bracketed citations like [1] or [2] referencing the medical literature)",
+  "citations": {{
+    "1": {{
+      "pmid": "PMID of first cited article",
+      "title": "Title of first cited article",
+      "url": "PubMed URL of first cited article"
+    }}
+  }}
 }}
 
 Generate minimum 3, maximum 6 differential diagnoses.
@@ -139,9 +157,20 @@ class DiagnosisAgent:
         combined_context = f"{first_context}\n\n{'='*60}\n\nAdditional Diagnostic Context:\n\n{second_context}"
 
         # Extend context sources
-        new_sources = [r.get("source", "unknown") for r in second_rag_results]
+        from app.rag.retriever import get_citations_list
+        new_sources = [r.get("citation") or "Clinical Guideline Reference" for r in second_rag_results]
         existing_sources = list(state.get("context_sources", []))
         state["context_sources"] = list(set(existing_sources + new_sources))
+        
+        # Merge citations
+        existing_citations = list(state.get("citations", []))
+        second_citations = get_citations_list(second_rag_results)
+        # Shift numbers to avoid collision
+        start_num = len(existing_citations) + 1
+        for idx, citation in enumerate(second_citations):
+            citation["citation_number"] = start_num + idx
+            existing_citations.append(citation)
+        state["citations"] = existing_citations
 
         # ── Step 2: LLM differential diagnosis ───────────────────────────────
         try:
