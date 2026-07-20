@@ -10,6 +10,7 @@ import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
 import StatusBadge from '@/components/shared/StatusBadge';
 import dynamic from 'next/dynamic';
+import { toast } from 'sonner';
 
 const LiveAgentPipeline = dynamic(
   () => import('@/components/patient/LiveAgentPipeline'),
@@ -21,7 +22,10 @@ import {
   ChevronUp, 
   Clock, 
   User, 
-  Terminal
+  Terminal,
+  RefreshCw,
+  AlertTriangle,
+  ServerCrash,
 } from 'lucide-react';
 
 export default function SessionDetailPage() {
@@ -31,9 +35,16 @@ export default function SessionDetailPage() {
 
   const { session, isLoading, isPolling, error, refetch } = useSession(sessionId);
   const stopPolling = useSessionStore((state) => state.stopPolling);
+  const setCurrentSession = useSessionStore((state) => state.setCurrentSession);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [auditExpanded, setAuditExpanded] = useState(false);
   const [secondsAgo, setSecondsAgo] = useState(0);
+  const [isRetrying, setIsRetrying] = useState(false);
+
+  // Clear stale session from store on mount so we never show a previous session's data
+  useEffect(() => {
+    setCurrentSession(null as any);
+  }, [sessionId, setCurrentSession]);
 
   // Fetch Audit Logs when session status changes or completes
   useEffect(() => {
@@ -90,19 +101,84 @@ export default function SessionDetailPage() {
     );
   }
 
+  // ── Failed session: exists in DB but pipeline crashed ──────────────────────
+  if (session && session.status === 'failed') {
+    const handleRetrigger = async () => {
+      setIsRetrying(true);
+      try {
+        await generateReport(sessionId);
+        toast.success('Pipeline re-triggered. Polling for results...');
+        await refetch();
+      } catch (e: any) {
+        toast.error(e?.message || 'Failed to re-trigger the pipeline. Check API quota.');
+      } finally {
+        setIsRetrying(false);
+      }
+    };
+
+    return (
+      <div className="max-w-xl mx-auto p-8 rounded-2xl bg-surface border border-warning/20 text-center my-12">
+        <div className="flex justify-center mb-4">
+          <AlertTriangle className="h-10 w-10 text-warning" />
+        </div>
+        <div className="text-warning font-bold text-lg">Pipeline Failed — Session Exists</div>
+        <p className="text-sm text-text-secondary mt-2 leading-relaxed">
+          The clinical analysis pipeline for session <span className="font-mono text-text-primary">{sessionId.slice(0,8)}…</span> failed during processing.
+          This is usually caused by an <b>LLM API rate limit</b> (e.g. Gemini free-tier quota) or a transient network error.
+        </p>
+        <div className="mt-4 p-3 rounded-xl bg-background border border-border text-xs font-mono text-text-secondary text-left">
+          <span className="text-warning font-bold">Status:</span> failed<br />
+          <span className="text-warning font-bold">Session ID:</span> {sessionId}<br />
+          <span className="text-warning font-bold">Fix:</span> Wait for quota reset (midnight UTC) then re-trigger, or upgrade to a paid API key.
+        </div>
+        <div className="flex justify-center gap-4 mt-6 flex-wrap">
+          <button
+            onClick={handleRetrigger}
+            disabled={isRetrying}
+            className="px-5 py-2.5 rounded-xl bg-primary text-text-primary hover:bg-primary/90 transition-all text-sm font-semibold flex items-center gap-2 disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRetrying ? 'animate-spin' : ''}`} />
+            {isRetrying ? 'Re-triggering...' : 'Re-trigger Pipeline'}
+          </button>
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="px-5 py-2.5 rounded-xl bg-surface-raised border border-border text-text-secondary hover:text-text-primary hover:bg-surface transition-all text-sm font-semibold"
+          >
+            Return to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Session not found or auth failure ──────────────────────────────────────
   if (error || !session) {
     return (
       <div className="max-w-xl mx-auto p-8 rounded-2xl bg-surface border border-danger/20 text-center my-12">
+        <div className="flex justify-center mb-4">
+          <ServerCrash className="h-10 w-10 text-danger" />
+        </div>
         <div className="text-danger font-bold text-lg">Failed to Retrieve Session</div>
         <p className="text-sm text-text-secondary mt-2 leading-relaxed">
-          The requested session ID &apos;{sessionId}&apos; does not exist or clinical access privilege failed.
+          {error
+            ? error
+            : `Session ID '${sessionId}' was not found. It may have been deleted or the ID is incorrect.`}
         </p>
-        <button
-          onClick={() => router.push('/dashboard')}
-          className="mt-6 px-5 py-2.5 rounded-xl bg-surface-raised border border-border text-text-primary hover:bg-surface transition-all text-sm font-semibold"
-        >
-          Return to Dashboard
-        </button>
+        <div className="flex justify-center gap-4 mt-6">
+          <button
+            onClick={() => refetch()}
+            className="px-5 py-2.5 rounded-xl bg-primary text-text-primary hover:bg-primary/90 transition-all text-sm font-semibold flex items-center gap-2"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Retry
+          </button>
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="px-5 py-2.5 rounded-xl bg-surface-raised border border-border text-text-secondary hover:text-text-primary hover:bg-surface transition-all text-sm font-semibold"
+          >
+            Return to Dashboard
+          </button>
+        </div>
       </div>
     );
   }
