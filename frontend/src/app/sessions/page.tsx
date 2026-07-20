@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSessions } from '@/hooks/useSessions';
 import StatusBadge from '@/components/shared/StatusBadge';
 import UrgencyBadge from '@/components/shared/UrgencyBadge';
-import LoadingSpinner from '@/components/shared/LoadingSpinner';
+import { SessionTableSkeleton } from '@/components/shared/Skeletons';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
 import { UrgencyLevel } from '@/types';
 import { 
@@ -90,7 +90,7 @@ export default function SessionsPage() {
                 setStatusFilter(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 py-2 rounded-xl bg-background border border-border text-text-primary text-xs focus:border-primary focus:outline-none transition-colors"
+              className="w-full px-3 py-2 rounded-xl bg-background border border-[#1e293b] text-text-primary text-xs focus:border-primary focus:outline-none transition-colors"
             >
               <option value="all">All Pipeline Statuses</option>
               <option value="pending">Pending</option>
@@ -109,7 +109,7 @@ export default function SessionsPage() {
                 setUrgencyFilter(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 py-2 rounded-xl bg-background border border-border text-text-primary text-xs focus:border-primary focus:outline-none transition-colors"
+              className="w-full px-3 py-2 rounded-xl bg-background border border-[#1e293b] text-text-primary text-xs focus:border-primary focus:outline-none transition-colors"
             >
               <option value="all">All Urgency Levels</option>
               <option value="low">Low Urgency</option>
@@ -131,9 +131,7 @@ export default function SessionsPage() {
             ───────────────────────────────────────────────────────────────────────────── */}
         <div className="w-full rounded-2xl bg-surface border border-border shadow-lg overflow-hidden">
           {isLoading ? (
-            <div className="py-24 flex items-center justify-center">
-              <LoadingSpinner size="md" label="Refreshing sessions list..." />
-            </div>
+            <SessionTableSkeleton />
           ) : error ? (
             <div className="py-12 p-4 text-center text-danger font-semibold text-sm">
               Error loading sessions: {error}

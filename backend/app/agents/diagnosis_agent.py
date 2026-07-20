@@ -149,7 +149,7 @@ class DiagnosisAgent:
         diag_query = f"differential diagnosis {cluster_text} {patient_data.get('chief_complaint', '')}"
         logger.info("DiagnosisAgent RAG retrieval", session_id=session_id, query_length=len(diag_query))
 
-        second_rag_results = self.retriever.retrieve(diag_query, top_k=6)
+        second_rag_results = await self.retriever.retrieve(diag_query, top_k=6)
         second_context     = format_context(second_rag_results)
 
         # Combine first and second RAG contexts

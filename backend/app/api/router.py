@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1 import health, patient, report, auth, ehr, fhir_import, analytics, voice, symptoms, admin
+from app.api.v1 import health, patient, report, auth, ehr, fhir_import, analytics, voice, symptoms, admin, demo
 
 api_router = APIRouter()
 
@@ -16,5 +16,9 @@ api_router.include_router(admin.router, prefix="/admin", tags=["Safety Administr
 # Day 6 — Voice Intake & Smart Symptom Intelligence
 api_router.include_router(voice.router, prefix="/voice", tags=["Voice Patient Intake"])
 api_router.include_router(symptoms.router, prefix="/symptoms", tags=["Smart Symptom Intelligence"])
+
+# Public Demo Router
+api_router.include_router(demo.router)
+
 
 

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import StatsCard from '@/components/dashboard/StatsCard';
 import RecentSessions from '@/components/dashboard/RecentSessions';
-import LoadingSpinner from '@/components/shared/LoadingSpinner';
+import { DashboardSkeleton } from '@/components/shared/Skeletons';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
 
 // Import newly created analytics hooks & charts
@@ -59,12 +59,7 @@ export default function Dashboard() {
   };
 
   if (isLoading || !data) {
-    return (
-      <div className="flex h-[75vh] flex-col items-center justify-center gap-4">
-        <LoadingSpinner size="lg" label="Initializing secure clinician analytics engine..." />
-        <span className="text-xs text-text-muted font-mono">Loading data from PostgreSQL aggregation views...</span>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   // Calculate critical case metric from overview breakdown

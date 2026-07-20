@@ -4,6 +4,7 @@ import time
 from app.dependencies import get_current_staff, get_db
 from app.schemas.auth import TokenData
 from app.services.analytics_service import AnalyticsService
+from app.utils.cache import analytics_cache
 
 router = APIRouter()
 
@@ -37,15 +38,15 @@ async def get_dashboard(
     db = Depends(get_db)
 ):
     """Get the full analytics dashboard (cached for 5 minutes).Scope is institution-locked."""
-    cache_key = get_cache_key(current_staff.institution_id, "dashboard", days=days)
-    cached = get_cached_data(cache_key)
+    key = f"dash_{current_staff.institution_id}_{days}"
+    cached = analytics_cache.get(key)
     if cached:
         return cached
 
     service = AnalyticsService(db, current_staff.institution_id)
-    data = await service.get_full_dashboard()
-    set_cached_data(cache_key, data)
-    return data
+    result = await service.get_full_dashboard()
+    analytics_cache.set(key, result)
+    return result
 
 
 @router.get("/overview")

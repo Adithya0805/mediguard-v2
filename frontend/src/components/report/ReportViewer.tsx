@@ -28,9 +28,19 @@ import {
 interface ReportViewerProps {
   report: ClinicalReportResponse;
   session: PatientSession;
+  FHIRViewer?: React.ComponentType<any>;
+  PDFDownloadManager?: React.ComponentType<any>;
+  LiveAgentPipeline?: React.ComponentType<any>;
 }
 
-export default function ReportViewer({ report, session }: ReportViewerProps) {
+export default function ReportViewer({ 
+  report, 
+  session, 
+  FHIRViewer: PropFHIRViewer, 
+  PDFDownloadManager: PropPDFDownloadManager 
+}: ReportViewerProps) {
+  const RenderFHIRViewer = PropFHIRViewer || FHIRViewer;
+  const RenderPDFDownloadManager = PropPDFDownloadManager || PDFDownloadManager;
   const [activeTab, setActiveTab] = useState<'summary' | 'ddx' | 'workup' | 'meds' | 'fhir'>('summary');
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -290,7 +300,7 @@ export default function ReportViewer({ report, session }: ReportViewerProps) {
               </div>
 
               {/* PDF Download and Print Manager */}
-              <PDFDownloadManager
+              <RenderPDFDownloadManager
                 sessionId={session.id}
                 onPrintClinical={() => triggerPrint('clinical')}
                 onPrintPatient={() => triggerPrint('patient')}
@@ -364,7 +374,7 @@ export default function ReportViewer({ report, session }: ReportViewerProps) {
 
         {activeTab === 'fhir' && (
           <div className="flex flex-col gap-8 w-full">
-            <FHIRViewer 
+            <RenderFHIRViewer 
               fhirBundle={fhir_bundle} 
               sessionId={session.id}
             />

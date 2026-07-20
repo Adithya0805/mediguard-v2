@@ -9,7 +9,12 @@ import { AuditLogEntry } from '@/types';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
 import StatusBadge from '@/components/shared/StatusBadge';
-import LiveAgentPipeline from '@/components/patient/LiveAgentPipeline';
+import dynamic from 'next/dynamic';
+
+const LiveAgentPipeline = dynamic(
+  () => import('@/components/patient/LiveAgentPipeline'),
+  { ssr: false }
+);
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ChevronDown, 

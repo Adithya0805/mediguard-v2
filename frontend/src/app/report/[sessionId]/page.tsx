@@ -7,6 +7,23 @@ import { useReport } from '@/hooks/useReport';
 import ReportViewer from '@/components/report/ReportViewer';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
+import { ReportSkeleton } from '@/components/shared/Skeletons';
+import dynamic from 'next/dynamic';
+
+const FHIRViewer = dynamic(
+  () => import('@/components/report/FHIRViewer'),
+  { loading: () => <LoadingSpinner size="md" label="Loading FHIR Schema Viewer..." />, ssr: false }
+);
+
+const PDFDownloadManager = dynamic(
+  () => import('@/components/report/PDFDownloadManager'),
+  { ssr: false }
+);
+
+const LiveAgentPipeline = dynamic(
+  () => import('@/components/patient/LiveAgentPipeline'),
+  { ssr: false }
+);
 
 export default function ReportPage() {
   const params = useParams();
@@ -20,11 +37,7 @@ export default function ReportPage() {
   const error = sessionError || reportError;
 
   if (isLoading) {
-    return (
-      <div className="flex h-[70vh] items-center justify-center">
-        <LoadingSpinner size="lg" label="Retrieving diagnostic decision support documents..." />
-      </div>
-    );
+    return <ReportSkeleton />;
   }
 
   if (error || !session || !report) {
@@ -37,7 +50,7 @@ export default function ReportPage() {
         <div className="flex justify-center gap-4 mt-6">
           <button
             onClick={() => router.push(`/patient/${sessionId}`)}
-            className="px-5 py-2.5 rounded-xl bg-primary text-text-primary hover:bg-primary/95 transition-all text-sm font-semibold"
+            className="px-5 py-2.5 rounded-xl bg-primary text-text-primary hover:bg-primary/95 transition-all text-sm font-semibold animate-pulse"
           >
             Check Case Tracker status
           </button>
@@ -55,7 +68,13 @@ export default function ReportPage() {
   return (
     <ErrorBoundary>
       <div className="w-full">
-        <ReportViewer report={report} session={session} />
+        <ReportViewer 
+          report={report} 
+          session={session} 
+          FHIRViewer={FHIRViewer}
+          PDFDownloadManager={PDFDownloadManager}
+          LiveAgentPipeline={LiveAgentPipeline}
+        />
       </div>
     </ErrorBoundary>
   );

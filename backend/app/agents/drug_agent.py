@@ -269,7 +269,7 @@ class DrugAgent:
         if not fda_available:
             drug_query = f"drug interactions {' '.join(current_medications[:5])}"
             logger.info("DrugAgent falling back to RAG retrieval", session_id=session_id)
-            rag_results = self.retriever.retrieve(drug_query, top_k=4)
+            rag_results = await self.retriever.retrieve(drug_query, top_k=4)
             drug_context = format_context(rag_results)
 
         # ── Step 3: LLM drug interaction analysis ────────────────────────────

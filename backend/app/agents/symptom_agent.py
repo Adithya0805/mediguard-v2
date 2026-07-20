@@ -118,7 +118,7 @@ class SymptomAgent:
         rag_query            = f"{chief_complaint} {' '.join(normalized_symptoms)}"
 
         logger.info("SymptomAgent performing RAG retrieval", session_id=session_id)
-        rag_results = self.retriever.retrieve(rag_query, top_k=5)
+        rag_results = await self.retriever.retrieve(rag_query, top_k=5)
         formatted_context = format_context(rag_results)
         from app.rag.retriever import get_citations_list
         sources           = [r.get("citation") or "Clinical Guideline Reference" for r in rag_results]
