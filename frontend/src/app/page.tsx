@@ -109,20 +109,26 @@ export default function LandingPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
-              className="flex flex-wrap gap-4"
+              className="flex flex-wrap gap-4 items-center"
             >
               <Link
-                href="/dashboard"
-                className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-xl bg-primary text-text-primary hover:bg-primary/95 transition-all font-semibold text-sm shadow-[0_0_15px_rgba(13,148,136,0.3)] hover:scale-[1.02]"
+                href="/demo"
+                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-primary text-text-primary hover:bg-primary/95 transition-all font-semibold text-sm shadow-[0_0_15px_rgba(13,148,136,0.3)] hover:scale-[1.02]"
               >
-                <span>Launch Clinical Portal</span>
+                <span>Run Public Demo</span>
                 <ArrowRight className="h-4.5 w-4.5" />
               </Link>
               <Link
-                href="/patient/new"
-                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-surface border border-border text-text-secondary hover:text-text-primary hover:bg-surface-raised transition-all font-semibold text-sm"
+                href="/showcase"
+                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-surface border border-border text-text-secondary hover:text-text-primary hover:bg-surface-raised transition-all font-semibold text-sm hover:scale-[1.02]"
               >
-                <span>Start Assessment</span>
+                <span>Project Showcase</span>
+              </Link>
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center text-xs text-text-muted hover:text-primary transition-colors w-full mt-2 font-mono"
+              >
+                Launch Clinical Portal (Login Required) &rarr;
               </Link>
             </motion.div>
 
