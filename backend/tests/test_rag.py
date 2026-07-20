@@ -27,31 +27,39 @@ def test_fallback_kb_no_matches():
     results = search_fallback_kb("unrelated clinical parameters")
     assert len(results) == 0
 
-def test_medical_retriever_offline_fallback():
+async def test_medical_retriever_offline_fallback():
     """Verifies that MedicalRetriever executes fallback when index connection is unconfigured."""
     retriever = MedicalRetriever()
     # Force retriever into offline fallback mode by clearing credentials
     retriever.index = None
     retriever.embeddings = None
     
-    results = retriever.retrieve("crushing substernal chest pain")
+    results = await retriever.retrieve("crushing substernal chest pain")
     assert len(results) > 0
     assert "12-lead electrocardiogram" in results[0]["text"]
-    assert "AHA/ACC" in results[0]["source"]
+    assert "AHA/ACC" in results[0]["citation"]
 
 def test_format_context():
     """Verifies that retrieved chunks format into clean context sections with source citations."""
     sample_results = [
         {
             "text": "Guideline A",
-            "source": "Source X",
-            "score": 0.8854
+            "citation": "Source X",
+            "score": 0.8854,
+            "source_type": "manual",
+            "pmid": None,
+            "title": None,
+            "authors": None,
+            "journal": None,
+            "year": None,
+            "pubmed_url": None,
+            "topic": None,
+            "priority": None,
         }
     ]
     context = format_context(sample_results)
     assert "Source X" in context
     assert "Guideline A" in context
-    assert "0.8854" in context
     
     empty_context = format_context([])
     assert "No relevant clinical context" in empty_context

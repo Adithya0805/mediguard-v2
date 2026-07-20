@@ -11,7 +11,7 @@ Provides:
 import uuid
 from datetime import datetime, timezone
 from typing import AsyncGenerator
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import AsyncClient, ASGITransport
@@ -21,6 +21,29 @@ from app.dependencies import get_db, verify_api_key, verify_clinical_auth
 
 # ── Override settings for tests ───────────────────────────────────────────────
 TEST_API_KEY = settings.SECRET_KEY
+
+
+# ── Session-scoped Pinecone / MedicalRetriever mock ──────────────────────────
+
+@pytest.fixture(autouse=True, scope="session")
+def mock_pinecone_globally():
+    """
+    Prevents any real Pinecone / HuggingFace network call during the test session.
+
+    - Patches MedicalRetriever.__init__ so constructing one never calls get_pinecone_index()
+    - Resets the lazy orchestrator singleton so it is rebuilt fresh with the mock in place
+    """
+    def _mock_retriever_init(self):
+        self.index = None
+        self.embeddings = None
+
+    with patch("app.rag.retriever.MedicalRetriever.__init__", _mock_retriever_init):
+        # Also reset the lazy singleton so it is rebuilt inside the patch context
+        import app.agents.orchestrator as _orch_mod
+        _orch_mod._orchestrator_instance = None
+        yield
+        # Tear-down: reset singleton again so nothing leaks between sessions
+        _orch_mod._orchestrator_instance = None
 
 
 # ── Mock database (Supabase) ──────────────────────────────────────────────────

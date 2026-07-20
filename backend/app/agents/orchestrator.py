@@ -329,8 +329,33 @@ def _calculate_duration(pipeline_start_time: str) -> float:
         return 0.0
 
 
-# ── Module-level singleton ────────────────────────────────────────────────────
-orchestrator = MediGuardOrchestrator()
+# ── Module-level singleton (lazy) ────────────────────────────────────────────
+# Instantiated on first access so that importing this module does NOT trigger
+# a real Pinecone connection (which breaks tests and CI environments that lack
+# a live Pinecone key).
+_orchestrator_instance: "MediGuardOrchestrator | None" = None
+
+
+def _get_orchestrator() -> "MediGuardOrchestrator":
+    """Returns the module-level singleton, constructing it on first call."""
+    global _orchestrator_instance
+    if _orchestrator_instance is None:
+        _orchestrator_instance = MediGuardOrchestrator()
+    return _orchestrator_instance
+
+
+class _OrchestratorProxy:
+    """
+    Transparent proxy for the MediGuardOrchestrator singleton.
+    Accessing any attribute triggers lazy construction of the real instance,
+    so code that does ``from app.agents.orchestrator import orchestrator``
+    and then calls ``orchestrator.run_pipeline(...)`` works without change.
+    """
+    def __getattr__(self, name: str):
+        return getattr(_get_orchestrator(), name)
+
+
+orchestrator = _OrchestratorProxy()
 
 
 def build_graph():

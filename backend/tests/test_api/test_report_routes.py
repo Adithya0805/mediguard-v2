@@ -24,7 +24,8 @@ class TestGenerateReport:
         """Valid session in pending state should enqueue pipeline and return 202."""
         with patch("app.api.v1.report.PatientService") as MockPS, \
              patch("app.api.v1.report.AuditService"), \
-             patch("app.api.v1.report.ReportService"):
+             patch("app.api.v1.report.ReportService"), \
+             patch("app.api.v1.report.run_pipeline_background", new_callable=AsyncMock):
 
             mock_ps = AsyncMock()
             mock_session = MagicMock()
