@@ -151,34 +151,12 @@ async def upload_pdf_to_storage(
     pdf_bytes: bytes,
     session_id: str
 ) -> str:
-    """Uploads compiled PDF report bytes to Supabase Storage."""
-    client = get_supabase_client()
-    
-    if isinstance(client, MockSupabaseClient):
-        mock_url = f"https://mock-storage.supabase.co/clinical-reports/reports/{session_id}/clinical_report.pdf"
-        logger.info("Mock PDF uploaded successfully (in-memory mock mode)", path=f"reports/{session_id}/clinical_report.pdf", size_bytes=len(pdf_bytes), url=mock_url)
-        return mock_url
-        
-    try:
-        # Check/create bucket
-        try:
-            client.storage.create_bucket("clinical-reports", options={"public": True})
-        except Exception:
-            pass  # Already exists or standard postgrest error we ignore
-            
-        path = f"reports/{session_id}/clinical_report.pdf"
-        # Standard Supabase python SDK storage calls are synchronous
-        client.storage.from_("clinical-reports").upload(
-            path=path,
-            file=pdf_bytes,
-            file_options={"content-type": "application/pdf"}
-        )
-        public_url = client.storage.from_("clinical-reports").get_public_url(path)
-        logger.info("Clinical report PDF successfully uploaded to Supabase Storage", path=path, size_bytes=len(pdf_bytes), url=public_url)
-        return public_url
-    except Exception as e:
-        logger.error("Failed to upload report PDF to Supabase Storage bucket", session_id=session_id, error=str(e))
-        raise DatabaseException(f"Failed to upload report PDF: {str(e)}")
+    """
+    Return a placeholder URL instead of uploading to S3.
+    PDF is generated fresh on each download via /api/v1/report/{id}/pdf/clinical.
+    """
+    logger.info("Skipping S3 upload: serving PDF on-demand", session_id=session_id, size_bytes=len(pdf_bytes))
+    return f"/api/v1/report/{session_id}/pdf/clinical"
 
 
 async def get_pdf_url(session_id: str) -> str | None:
