@@ -5,7 +5,7 @@ Shared state object passed through every node in the LangGraph pipeline.
 Every agent reads from and writes to this single state object.
 All fields must be present — use safe defaults when initialising.
 """
-from typing import TypedDict, List, Dict, Any, Optional
+from typing import TypedDict, List, Dict, Any
 
 
 class AgentState(TypedDict):
@@ -49,6 +49,7 @@ class AgentState(TypedDict):
 
     # ── Report agent output ──────────────────────────────────────────────────
     report:                 Dict[str, Any]  # Full synthesised clinical report dict
+    report_metadata:        Dict[str, Any]  # Report metadata (agents, model, timings)
     report_generated:       bool            # True once report agent completes
 
     # ── Orchestration metadata ───────────────────────────────────────────────
@@ -110,6 +111,7 @@ def build_initial_state(session_id: str, patient_data: Dict[str, Any]) -> AgentS
 
         # Report
         report={},
+        report_metadata={},
         report_generated=False,
 
         # Orchestration
