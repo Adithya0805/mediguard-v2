@@ -20,11 +20,25 @@ import {
   ChevronUp,
   FileText,
   BookOpen,
-  Database
+  Database,
+  Settings
 } from 'lucide-react';
 import api from '@/lib/api';
 import UrgencyBadge from '@/components/shared/UrgencyBadge';
 import { toast } from 'sonner';
+import DemoSettingsDrawer from '@/components/demo/DemoSettingsDrawer';
+import {
+  DEMO_SESSION_KEY,
+  DemoPatientRecord,
+  DemoReportRecord,
+  DemoSessionState,
+  saveDemoPatient,
+  saveDemoReport,
+  saveDemoSessionState,
+  getDemoSessionState,
+  getDemoReports,
+  generateDemoId
+} from '@/lib/demoStorage';
 
 // Detailed data for fallback and patient preview
 const DEMO_SCENARIO_METADATA: Record<string, {
@@ -95,6 +109,18 @@ const DEMO_SCENARIO_METADATA: Record<string, {
   }
 };
 
+// Shape of the demo pipeline run response used when persisting locally.
+interface DemoRunResponse {
+  case_label?: string;
+  patient_summary?: {
+    age?: number;
+    gender?: string;
+    chief_complaint?: string;
+    symptom_count?: number;
+  };
+  results?: unknown;
+}
+
 export default function PublicDemoPage() {
   const [cases, setCases] = useState<any[]>([]);
   const [selectedCaseKey, setSelectedCaseKey] = useState<string>("cardiac");
@@ -113,6 +139,9 @@ export default function PublicDemoPage() {
   
   const resultsRef = useRef<HTMLDivElement>(null);
   const topRef = useRef<HTMLDivElement>(null);
+
+  // Settings drawer state
+  const [settingsOpen, setSettingsOpen] = useState<boolean>(false);
 
   // Fetch available cases and system status on mount
   useEffect(() => {
@@ -150,6 +179,42 @@ export default function PublicDemoPage() {
     loadInitialData();
   }, []);
 
+  // Restore persisted demo data (session state + last report) on mount.
+  // Fails gracefully to an empty demo state if browser storage was cleared
+  // or is unavailable (private browsing, blocked IndexedDB, etc.).
+  useEffect(() => {
+    let cancelled = false;
+    async function restoreDemoData() {
+      try {
+        const [session, reports] = await Promise.all([getDemoSessionState(), getDemoReports()]);
+        if (cancelled) return;
+
+        if (session?.selectedCaseKey) {
+          setSelectedCaseKey(session.selectedCaseKey);
+        }
+
+        if (reports.length > 0) {
+          const sorted = [...reports].sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+          const preferred = session?.lastRunReportId
+            ? sorted.find((r) => r.id === session.lastRunReportId)
+            : undefined;
+          const latest = preferred ?? sorted[0];
+          if (latest) {
+            setResults(latest.results);
+          }
+        }
+      } catch (err) {
+        console.warn('Demo local storage unavailable; starting from a fresh state.', err);
+      }
+    }
+    restoreDemoData();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Timer simulation for progress bar
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -182,6 +247,50 @@ export default function PublicDemoPage() {
     return () => clearInterval(interval);
   }, [isRunning]);
 
+  // Persist the completed demo run locally so it survives a refresh.
+  const persistDemoRun = async (caseKey: string, runData: DemoRunResponse) => {
+    const meta = DEMO_SCENARIO_METADATA[caseKey];
+    const patientSummary = runData?.patient_summary ?? {};
+
+    const patientRecord: DemoPatientRecord = {
+      id: generateDemoId('patient'),
+      caseKey,
+      patientName: `Demo ${meta?.label ?? caseKey}`,
+      age: typeof patientSummary.age === 'number' ? patientSummary.age : 0,
+      gender: typeof patientSummary.gender === 'string' ? patientSummary.gender : 'unknown',
+      chiefComplaint: typeof patientSummary.chief_complaint === 'string' ? patientSummary.chief_complaint : '',
+      symptoms: meta?.details?.symptoms ?? [],
+      medications: meta?.details?.medications ?? [],
+      vitals: meta?.details?.vitals ?? {},
+      createdAt: new Date().toISOString()
+    };
+
+    const reportRecord: DemoReportRecord = {
+      id: generateDemoId('report'),
+      patientId: patientRecord.id,
+      caseKey,
+      caseLabel: runData?.case_label ?? meta?.label ?? caseKey,
+      createdAt: new Date().toISOString(),
+      results: runData
+    };
+
+    const sessionState: DemoSessionState = {
+      id: DEMO_SESSION_KEY,
+      selectedCaseKey: caseKey,
+      lastRunReportId: reportRecord.id,
+      lastRunAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    try {
+      await saveDemoPatient(patientRecord);
+      await saveDemoReport(reportRecord);
+      await saveDemoSessionState(sessionState);
+    } catch (err) {
+      console.warn('Failed to persist demo data locally; continuing in memory-only mode.', err);
+    }
+  };
+
   // Run the clinical pipeline
   const handleRunDemo = async () => {
     if (isRunning) return;
@@ -195,6 +304,7 @@ export default function PublicDemoPage() {
       setResults(response.data);
       setProgress(100);
       toast.success("Clinical analysis completed successfully!");
+      await persistDemoRun(selectedCaseKey, response.data);
       
       // Auto scroll to results after a short delay
       setTimeout(() => {
@@ -206,6 +316,18 @@ export default function PublicDemoPage() {
     } finally {
       setIsRunning(false);
     }
+  };
+
+  // Reset the page to a fresh demo state after demo data is cleared.
+  const handleDemoDataCleared = () => {
+    setResults(null);
+    setSelectedCaseKey("cardiac");
+    setProgress(0);
+    setIsRunning(false);
+    setSettingsOpen(false);
+    setTimeout(() => {
+      topRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 50);
   };
 
   const selectedMetadata = DEMO_SCENARIO_METADATA[selectedCaseKey];
@@ -220,7 +342,16 @@ export default function PublicDemoPage() {
       <div className="w-full max-w-6xl mx-auto px-4 py-12 flex-1 flex flex-col gap-12 z-10">
         
         {/* SECTION 1 — HEADER */}
-        <header className="flex flex-col items-center text-center gap-4">
+        <header className="relative flex flex-col items-center text-center gap-4">
+          <button
+            onClick={() => setSettingsOpen(true)}
+            className="absolute top-0 right-0 p-3 rounded-xl bg-[#111827]/80 border border-[#1e293b] text-[#94a3b8] hover:text-[#0d9488] hover:border-[#0d9488]/30 transition-colors cursor-pointer focus:outline-none"
+            aria-label="Open demo settings"
+            title="Settings"
+          >
+            <Settings className="h-5 w-5" />
+          </button>
+
           <div className="p-4 rounded-3xl bg-[#111827]/80 border border-[#0d9488]/30 shadow-[0_0_30px_rgba(13,148,136,0.15)] flex items-center justify-center animate-pulse">
             <ShieldAlert className="h-12 w-12 text-[#0d9488]" />
           </div>
@@ -694,6 +825,13 @@ export default function PublicDemoPage() {
         )}
 
       </div>
+
+      {/* Demo Mode Settings — contains the Local Storage panel */}
+      <DemoSettingsDrawer
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onDataCleared={handleDemoDataCleared}
+      />
     </div>
   );
 }
