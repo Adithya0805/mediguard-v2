@@ -1,8 +1,21 @@
 import json
 import re
-from typing import Optional
-from deepeval.metrics import BaseMetric
-from deepeval.test_case import LLMTestCase
+try:
+    from deepeval.metrics import BaseMetric
+    from deepeval.test_case import LLMTestCase
+except ImportError:
+    class BaseMetric:
+        name: str = "Base Metric"
+        def __init__(self, *args, **kwargs):
+            pass
+
+    class LLMTestCase:
+        def __init__(self, input=None, actual_output=None, expected_output=None, context=None, retrieval_context=None):
+            self.input = input
+            self.actual_output = actual_output
+            self.expected_output = expected_output
+            self.context = context
+            self.retrieval_context = retrieval_context
 
 
 # ── Metric 1: DiagnosisAccuracyMetric ───────────────────────────────────────

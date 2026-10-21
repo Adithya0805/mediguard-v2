@@ -607,62 +607,81 @@ class ClinicalPDFGenerator:
         ddx = report_data.get('differential_diagnosis', [])
         primary_dx = ddx[0].get('diagnosis', 'Assessment Pending') if ddx else 'Assessment Pending'
         
+        discharge_plan = report_data.get('patient_discharge_summary') or {}
+        condition_explanation = discharge_plan.get('condition_explanation') or f"You were evaluated today for {patient_data.get('chief_complaint', 'your health concern')}. Our medical team has compiled personalized home care instructions below."
+
         info_text = f"""
         <b>Patient:</b> {patient_data.get('patient_name', 'Patient')}<br/>
         <b>Reason for Visit:</b> {patient_data.get('chief_complaint', 'Clinical Assessment')}<br/>
-        <b>Primary Medical Impression:</b> {primary_dx} (Plain English description)
+        <b>Primary Evaluation:</b> {primary_dx}
         """
         elements.append(Paragraph("<b>VISIT OVERVIEW</b>", self.SubHeader))
         elements.append(Paragraph(info_text, self.BodyText))
-        elements.append(Spacer(1, 10))
+        elements.append(Spacer(1, 6))
 
-        # Doctor's Recommendations
-        elements.append(Paragraph("<b>WHAT WE RECOMMEND</b>", self.SubHeader))
-        workups = report_data.get('recommended_workup', report_data.get('recommended_tests', []))
-        if workups:
-            for idx, item in enumerate(workups):
+        # Condition Explanation
+        elements.append(Paragraph("<b>WHAT THIS MEANS (PLAIN LANGUAGE)</b>", self.SubHeader))
+        elements.append(Paragraph(condition_explanation, self.BodyText))
+        elements.append(Spacer(1, 8))
+
+        # Home Care Instructions
+        elements.append(Paragraph("<b>HOME CARE & RECOVERY PLAN</b>", self.SubHeader))
+        home_care = discharge_plan.get('home_care_instructions') or report_data.get('follow_up_instructions', [])
+        if home_care:
+            for idx, item in enumerate(home_care):
                 elements.append(Paragraph(f"<b>{idx+1}.</b> {item}", self.BodyText))
         else:
-            elements.append(Paragraph("Follow standard medical care advice as discussed with your doctor.", self.BodyText))
-        elements.append(Spacer(1, 10))
+            elements.append(Paragraph("Follow standard recovery advice as discussed with your physician.", self.BodyText))
+        elements.append(Spacer(1, 8))
 
-        # Medications reviewed
-        elements.append(Paragraph("<b>MEDICATIONS REVIEWED</b>", self.SubHeader))
-        meds = patient_data.get('current_medications', [])
-        interactions = report_data.get('drug_interactions', report_data.get('drug_interactions_found', []))
-        
-        if meds:
-            for m in meds:
-                # Basic mock check if medication is involved in a severe warning
-                flagged = any(m.lower() in str(i).lower() for i in interactions)
-                status_lbl = "<font color='red'><b>Review with Doctor</b> (Possible warning)</font>" if flagged else "<font color='green'><b>No Warnings Found</b></font>"
-                elements.append(Paragraph(f"• {m} — {status_lbl}", self.BodyText))
+        # Structured Medications Guide
+        elements.append(Paragraph("<b>MEDICATIONS & PHARMACEUTICAL GUIDE</b>", self.SubHeader))
+        meds_guide = discharge_plan.get('medications_guide', [])
+        if meds_guide and isinstance(meds_guide, list):
+            for mg in meds_guide:
+                if isinstance(mg, dict):
+                    med_name = mg.get('medication', 'Medication')
+                    med_purpose = mg.get('purpose', 'Prescribed therapy')
+                    med_inst = mg.get('instructions', 'Take as directed')
+                    med_prec = mg.get('precautions', 'None listed')
+                    elements.append(Paragraph(f"• <b>{med_name}</b> — <i>{med_purpose}</i><br/>&nbsp;&nbsp;<b>How to take:</b> {med_inst} | <b>Precautions:</b> {med_prec}", self.BodyText))
         else:
-            elements.append(Paragraph("No current home medications were reviewed.", self.BodyText))
-        elements.append(Spacer(1, 10))
+            meds = patient_data.get('current_medications', [])
+            if meds:
+                for m in meds:
+                    elements.append(Paragraph(f"• <b>{m}</b> — Continue strictly as instructed by your clinician.", self.BodyText))
+            else:
+                elements.append(Paragraph("No home medications currently prescribed or reviewed.", self.BodyText))
+        elements.append(Spacer(1, 8))
 
-        # Follow up
-        elements.append(Paragraph("<b>FOLLOW-UP INSTRUCTIONS</b>", self.SubHeader))
-        follow_ups = report_data.get('follow_up_instructions', [])
-        if follow_ups:
-            for idx, inst in enumerate(follow_ups):
-                elements.append(Paragraph(f"<b>{idx+1}.</b> {inst}", self.BodyText))
-        else:
-            elements.append(Paragraph("1. Contact our clinic if symptoms persist or change.<br/>2. Schedule a routine checkup in 1-2 weeks.", self.BodyText))
-        elements.append(Spacer(1, 10))
+        # Activity and Diet
+        act_diet = discharge_plan.get('activity_and_diet', [])
+        if act_diet:
+            elements.append(Paragraph("<b>ACTIVITY & DIET GUIDELINES</b>", self.SubHeader))
+            for ad in act_diet:
+                elements.append(Paragraph(f"• {ad}", self.BodyText))
+            elements.append(Spacer(1, 8))
 
         # Warning flags / ED guidelines
-        elements.append(Paragraph("<b>⚠️ WHEN TO SEEK EMERGENCY CARE</b>", ParagraphStyle('AmberSub', parent=self.SubHeader, textColor=self.ALERT_AMBER)))
-        alert_msg = "Please go to the nearest emergency department or dial 911 immediately if you experience sudden chest pain, shortness of breath, severe dizziness, confusion, or weakness."
-        elements.append(Paragraph(alert_msg, self.BodyText))
-        elements.append(Spacer(1, 15))
+        elements.append(Paragraph("<b>⚠️ CRITICAL WARNING SIGNS — WHEN TO SEEK IMMEDIATE EMERGENCY CARE</b>", ParagraphStyle('AmberSub', parent=self.SubHeader, textColor=self.ALERT_AMBER)))
+        red_flags = discharge_plan.get('emergency_red_flags') or [
+            "Sudden severe shortness of breath or difficulty breathing",
+            "Crushing chest pressure, tightness, or pain spreading to arm or jaw",
+            "Sudden weakness, numbness, facial droop, or trouble speaking",
+            "High fever with stiff neck, severe headache, or confusion"
+        ]
+        for rf in red_flags:
+            elements.append(Paragraph(f"<font color='#d35400'>• <b>{rf}</b></font>", self.BodyText))
+        elements.append(Spacer(1, 10))
 
-        # Clinic Contact placeholder
-        elements.append(Paragraph(f"<b>Clinic Contact:</b> For any questions, please call {institution_name} department.", self.ClinicalNote))
-        elements.append(Spacer(1, 15))
+        # Follow up timeline
+        timeline = discharge_plan.get('follow_up_timeline') or "Schedule a follow-up appointment with your doctor within 2 to 3 days."
+        elements.append(Paragraph(f"<b>Follow-Up Timeline:</b> {timeline}", self.ClinicalNote))
+        elements.append(Paragraph(f"<b>Clinic Contact:</b> For any questions or non-emergency concerns, please call {institution_name}.", self.ClinicalNote))
+        elements.append(Spacer(1, 10))
 
         # Footer disclaimer
-        disc = "<i>This summary was prepared with AI assistance to translate complex charts. Please follow up with your doctor for all medical decisions.</i>"
+        disc = "<i>This patient summary translates complex clinical records into accessible language with AI assistance. It does not replace professional consultation. For all medical decisions, consult your physician.</i>"
         elements.append(Paragraph(disc, self.Disclaimer))
 
         doc.build(elements, onFirstPage=self._draw_patient_decorations, onLaterPages=self._draw_patient_decorations)

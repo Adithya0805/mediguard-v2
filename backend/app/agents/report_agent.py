@@ -78,6 +78,21 @@ Return a JSON object with:
     "model_used": "",
     "rag_sources_count": 0
   }},
+  "patient_discharge_summary": {{
+    "condition_explanation": "Simple 2-3 sentence explanation of the condition in plain everyday words (6th grade reading level)",
+    "home_care_instructions": ["Actionable step 1", "Actionable step 2"],
+    "medications_guide": [
+      {{
+        "medication": "Drug name",
+        "purpose": "What this medicine does",
+        "instructions": "How and when to take it",
+        "precautions": "Special precautions"
+      }}
+    ],
+    "emergency_red_flags": ["Critical signs that mean call emergency services or return to ER immediately"],
+    "activity_and_diet": ["Diet and physical activity recommendations"],
+    "follow_up_timeline": "Specific timeline for follow-up visit"
+  }},
   "citations": {{
     "1": {{
       "pmid": "PMID of first cited article",
@@ -240,9 +255,10 @@ class ReportAgent:
                 model_used=model_used,
             )
 
-            state["report"]           = report
-            state["report_metadata"]  = dict(report.get("report_metadata", {}))
-            state["report_generated"] = True
+            state["report"]                    = report
+            state["report_metadata"]           = dict(report.get("report_metadata", {}))
+            state["patient_discharge_summary"] = dict(report.get("patient_discharge_summary", {}))
+            state["report_generated"]          = True
 
             logger.info(
                 "ReportAgent completed — final report generated",
@@ -287,8 +303,9 @@ class ReportAgent:
                 partial_report=parsed if isinstance(parsed, dict) else None,
                 state=state,
             )
-            state["report_metadata"]  = dict(state["report"].get("report_metadata", {}))
-            state["report_generated"] = True   # mark True — partial report is still a report
+            state["report_metadata"]           = dict(state["report"].get("report_metadata", {}))
+            state["patient_discharge_summary"] = dict(state["report"].get("patient_discharge_summary", {}))
+            state["report_generated"]          = True   # mark True — partial report is still a report
 
             # Broadcast failed event
             duration = (datetime.utcnow() - agent_start_time).seconds
@@ -519,7 +536,105 @@ def _normalize_report(
     _backfill(report, "fda_data_used",        state.get("fda_data_used", False))
     _backfill(report, "urgency_level",        state.get("urgency_level", "medium"))
 
+    # ── Patient Discharge Plain-Language Plan ─────────────────────────────────
+    raw_discharge = report.get("patient_discharge_summary")
+    report["patient_discharge_summary"] = _normalize_patient_discharge(raw_discharge, state)
+
     return report
+
+
+def _normalize_patient_discharge(parsed_discharge: Any, state: Optional[AgentState] = None) -> Dict[str, Any]:
+    """
+    Normalise the patient-facing discharge plan into plain-language, empathetic,
+    and actionable guidance (6th-grade reading level).
+    """
+    state = state or {}
+    discharge = dict(parsed_discharge) if isinstance(parsed_discharge, dict) else {}
+    patient_data = state.get("patient_data", {})
+    primary_dx = state.get("primary_diagnosis", {})
+    dx_name = primary_dx.get("diagnosis") or patient_data.get("chief_complaint", "your health concern")
+
+    # 1. Condition explanation
+    if not discharge.get("condition_explanation") or not isinstance(discharge.get("condition_explanation"), str):
+        discharge["condition_explanation"] = (
+            f"You were evaluated today for {dx_name}. "
+            "Our medical team has provided care instructions to help support your recovery at home. "
+            "Please follow this guidance carefully and contact us if your symptoms change."
+        )
+
+    # 2. Home care instructions
+    home_care = discharge.get("home_care_instructions")
+    if not isinstance(home_care, list) or not home_care:
+        discharge["home_care_instructions"] = [
+            "Get plenty of rest and avoid strenuous physical activity until cleared by your doctor.",
+            "Stay well hydrated by drinking water regularly, unless your doctor advised fluid limits.",
+            "Keep a written log of your symptoms and temperature.",
+            "Take all prescribed medications on time as directed."
+        ]
+    else:
+        discharge["home_care_instructions"] = [str(x) for x in home_care]
+
+    # 3. Medications guide
+    meds_guide = discharge.get("medications_guide")
+    if not isinstance(meds_guide, list) or not meds_guide:
+        cur_meds = patient_data.get("current_medications", [])
+        formatted_guide = []
+        for med in cur_meds[:4]:
+            formatted_guide.append({
+                "medication": str(med),
+                "purpose": "Prescribed therapy",
+                "instructions": "Take strictly as directed by your clinician",
+                "precautions": "Do not skip doses or double up if missed"
+            })
+        if not formatted_guide:
+            formatted_guide.append({
+                "medication": "None currently recorded",
+                "purpose": "N/A",
+                "instructions": "Continue routine medications only as advised by your physician",
+                "precautions": "Consult your pharmacist before starting any over-the-counter medicine"
+            })
+        discharge["medications_guide"] = formatted_guide
+    else:
+        validated_guide = []
+        for item in meds_guide:
+            if isinstance(item, dict):
+                validated_guide.append({
+                    "medication": str(item.get("medication", "Medication")),
+                    "purpose": str(item.get("purpose", "Therapy")),
+                    "instructions": str(item.get("instructions", "Take as directed")),
+                    "precautions": str(item.get("precautions", "Follow package directions"))
+                })
+        discharge["medications_guide"] = validated_guide or [{"medication": "None", "purpose": "N/A", "instructions": "None", "precautions": "None"}]
+
+    # 4. Emergency red flags
+    red_flags = discharge.get("emergency_red_flags")
+    if not isinstance(red_flags, list) or not red_flags:
+        discharge["emergency_red_flags"] = [
+            "Sudden severe shortness of breath or difficulty breathing",
+            "Crushing chest pressure, tightness, or pain spreading to arm or jaw",
+            "Sudden weakness, numbness, facial droop, or trouble speaking",
+            "High fever with stiff neck, severe headache, or confusion",
+            "Persistent vomiting, coughing up blood, or black/tarry bowel movements"
+        ]
+    else:
+        discharge["emergency_red_flags"] = [str(x) for x in red_flags]
+
+    # 5. Activity and diet
+    act_diet = discharge.get("activity_and_diet")
+    if not isinstance(act_diet, list) or not act_diet:
+        discharge["activity_and_diet"] = [
+            "Eat light, balanced meals as tolerated.",
+            "Avoid alcohol and tobacco products during recovery.",
+            "Resume normal physical activity gradually as your strength returns."
+        ]
+    else:
+        discharge["activity_and_diet"] = [str(x) for x in act_diet]
+
+    # 6. Follow up timeline
+    if not discharge.get("follow_up_timeline") or not isinstance(discharge.get("follow_up_timeline"), str):
+        discharge["follow_up_timeline"] = "Schedule a follow-up visit with your primary care physician within 2 to 3 days."
+
+    return discharge
 
 
 def _backfill(report: Dict[str, Any], key: str, fallback: Any) -> None:

@@ -5,7 +5,10 @@ import asyncio
 from datetime import datetime, timezone
 from typing import Dict, Any, List
 
-from deepeval.test_case import LLMTestCase
+try:
+    from deepeval.test_case import LLMTestCase
+except ImportError:
+    LLMTestCase = None
 
 from evals.test_cases.clinical_cases import CLINICAL_TEST_CASES, SAFETY_CRITICAL_CASES
 from evals.metrics.clinical_metrics import (

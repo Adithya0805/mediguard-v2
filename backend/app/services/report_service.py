@@ -48,6 +48,7 @@ class ReportService:
             "urgency_level": report_data["urgency_level"],
             "report_pdf_url": report_data.get("report_pdf_url"),
             "fhir_bundle": report_data.get("fhir_bundle", {}),
+            "patient_discharge_summary": report_data.get("patient_discharge_summary"),
             "reviewed_by_agent": report_data["reviewed_by_agent"]
         }
         

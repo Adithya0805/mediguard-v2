@@ -85,6 +85,15 @@ class FHIRBundleGenerator:
                 "resource": allergy_res
             })
 
+        # 8. CarePlan resource (Patient plain-language discharge plan)
+        discharge_plan = report_data.get("patient_discharge_summary")
+        if discharge_plan and isinstance(discharge_plan, dict):
+            care_plan_res = self._build_care_plan(discharge_plan, session_id)
+            entries.append({
+                "fullUrl": f"{self.FHIR_BASE_URL}/CarePlan/{session_id}-discharge",
+                "resource": care_plan_res
+            })
+
         bundle = {
             "resourceType": "Bundle",
             "id": session_id,
@@ -347,6 +356,52 @@ class FHIRBundleGenerator:
             "patient": {
                 "reference": f"Patient/{session_id}"
             }
+        }
+
+    def _build_care_plan(self, discharge_plan: Dict[str, Any], session_id: str) -> Dict[str, Any]:
+        """Constructs FHIR CarePlan resource representing patient discharge instructions."""
+        condition_exp = discharge_plan.get("condition_explanation", "Patient discharge summary")
+        home_care = discharge_plan.get("home_care_instructions", [])
+        red_flags = discharge_plan.get("emergency_red_flags", [])
+        timeline = discharge_plan.get("follow_up_timeline", "")
+
+        activities = []
+        for idx, item in enumerate(home_care):
+            activities.append({
+                "detail": {
+                    "kind": "Task",
+                    "code": {
+                        "text": str(item)
+                    },
+                    "status": "in-progress",
+                    "doNotPerform": False,
+                    "description": f"Home care instruction {idx + 1}: {item}"
+                }
+            })
+
+        return {
+            "resourceType": "CarePlan",
+            "id": f"{session_id}-discharge",
+            "status": "active",
+            "intent": "plan",
+            "category": [{
+                "coding": [{
+                    "system": "http://hl7.org/fhir/us/core/CodeSystem/careplan-category",
+                    "code": "assess-plan",
+                    "display": "Assessment and Plan of Treatment"
+                }],
+                "text": "Patient Discharge Care Plan"
+            }],
+            "title": "Patient Plain-Language Discharge Plan",
+            "description": condition_exp,
+            "subject": {
+                "reference": f"Patient/{session_id}"
+            },
+            "activity": activities,
+            "note": [
+                {"text": f"Follow-up: {timeline}"},
+                {"text": f"Warning signs: {'; '.join(str(x) for x in red_flags)}"}
+            ]
         }
 
     def validate_bundle(self, bundle: Dict[str, Any]) -> Tuple[bool, List[str]]:

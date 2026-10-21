@@ -149,11 +149,48 @@ class MedicalRetriever:
             # Sort by boosted score descending
             results.sort(key=lambda x: x["score"], reverse=True)
             logger.info("RAG search query returned merged matches count", count=len(results))
+            
+            # If Pinecone returned zero high-confidence matches, enrich with offline clinical guidelines
+            if not results:
+                logger.info("No vector matches above threshold; retrieving emergency fallback guidelines...", query=query)
+                fallback_results = search_fallback_kb(query)[:top_k]
+                for res in fallback_results:
+                    results.append({
+                        "text": res["text"],
+                        "score": res["score"],
+                        "source_type": "manual",
+                        "pmid": None,
+                        "title": None,
+                        "authors": None,
+                        "journal": None,
+                        "year": None,
+                        "citation": res["source"],
+                        "pubmed_url": None,
+                        "topic": None,
+                        "priority": None
+                    })
             return results[:top_k]
             
         except Exception as e:
-            logger.error("Error executing Pinecone index query search", error=str(e))
-            return []
+            logger.error("Error executing Pinecone index query search — falling back to offline clinical guidelines", error=str(e), query=query)
+            fallback_results = search_fallback_kb(query)[:top_k]
+            fallback_list = []
+            for res in fallback_results:
+                fallback_list.append({
+                    "text": res["text"],
+                    "score": res["score"],
+                    "source_type": "manual",
+                    "pmid": None,
+                    "title": None,
+                    "authors": None,
+                    "journal": None,
+                    "year": None,
+                    "citation": res["source"],
+                    "pubmed_url": None,
+                    "topic": None,
+                    "priority": None
+                })
+            return fallback_list
 
 
 def format_context(results: List[Dict[str, Any]]) -> str:

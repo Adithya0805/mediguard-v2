@@ -56,6 +56,7 @@ class ClinicalReport(BaseModel):
     urgency_level: str = Field(..., description="Clinical triage level (low, medium, high, critical)")
     report_pdf_url: Optional[str] = Field(default=None, description="Secure URL path to the generated clinical PDF report")
     fhir_bundle: Optional[Dict[str, Any]] = Field(default=None, description="Standardized HL7/FHIR compliant representation")
+    patient_discharge_summary: Optional[Dict[str, Any]] = Field(default=None, description="Patient-facing plain-language care plan and warning signs")
     reviewed_by_agent: str = Field(..., description="Agent signature who compiled/reviewed the report")
 
 

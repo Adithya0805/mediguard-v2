@@ -48,9 +48,10 @@ class AgentState(TypedDict):
     fda_data_used:          bool                  # True if OpenFDA real data was used
 
     # ── Report agent output ──────────────────────────────────────────────────
-    report:                 Dict[str, Any]  # Full synthesised clinical report dict
-    report_metadata:        Dict[str, Any]  # Report metadata (agents, model, timings)
-    report_generated:       bool            # True once report agent completes
+    report:                     Dict[str, Any]  # Full synthesised clinical report dict
+    report_metadata:            Dict[str, Any]  # Report metadata (agents, model, timings)
+    report_generated:           bool            # True once report agent completes
+    patient_discharge_summary:  Dict[str, Any]  # Plain-language discharge plan & warning signs
 
     # ── Orchestration metadata ───────────────────────────────────────────────
     current_agent:          str             # Name of currently executing agent
@@ -113,6 +114,7 @@ def build_initial_state(session_id: str, patient_data: Dict[str, Any]) -> AgentS
         report={},
         report_metadata={},
         report_generated=False,
+        patient_discharge_summary={},
 
         # Orchestration
         current_agent="intake",

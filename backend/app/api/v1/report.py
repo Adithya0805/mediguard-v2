@@ -94,6 +94,7 @@ async def run_pipeline_background(
             "urgency_level":           urgency_level,
             "reviewed_by_agent":       "MediGuardOrchestrator v2",
             "fhir_bundle":             {},
+            "patient_discharge_summary": report_data.get("patient_discharge_summary") or final_state.get("patient_discharge_summary"),
         }
 
         # ── Persist the clinical report ───────────────────────────────────────
