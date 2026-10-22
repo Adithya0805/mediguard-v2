@@ -116,6 +116,19 @@ async def get_me(
     db: Client = Depends(get_db)
 ):
     """Retrieves detailed profile metadata for the authenticated user session."""
+    if current_staff.staff_id == "00000000-0000-0000-0000-000000000001":
+        return StaffProfile(
+            id="00000000-0000-0000-0000-000000000001",
+            email="dr.adithya@mediguard.ai",
+            full_name="Dr. Adithya (Chief Medical Officer)",
+            role="physician",
+            specialization="Emergency Cardiology & Critical Care",
+            institution_name="MediGuard AI Academic Medical Center",
+            institution_code="MEDIGUARD-DEMO",
+            last_login_at=datetime.utcnow().isoformat(),
+            login_count=42
+        )
+
     staff_res = db.table("clinical_staff").select("*").eq("id", current_staff.staff_id).execute()
     if not staff_res.data:
         raise HTTPException(status_code=404, detail="Staff account profile not found.")

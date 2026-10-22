@@ -4,7 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import { Mail, Lock, Building2, Eye, EyeOff, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { Mail, Lock, Building2, Eye, EyeOff, ShieldCheck, ShieldAlert, Zap, KeyRound } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -28,6 +28,37 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const handleQuickDemoLogin = async () => {
+    setEmail('dr.adithya@mediguard.ai');
+    setKeyPhrase('MediGuard2026!Secure');
+    setInstitutionCode('MEDIGUARD-DEMO');
+    setLocalError(null);
+    clearAuthError();
+    setSuccessMessage(null);
+
+    const success = await login(
+      'dr.adithya@mediguard.ai',
+      'MediGuard2026!Secure',
+      'MEDIGUARD-DEMO'
+    );
+
+    if (success) {
+      setSuccessMessage('Access granted. Welcome, Dr. Adithya (CMO)');
+      toast.success('Access granted. Welcome, Dr. Adithya (CMO)');
+      const redirectUrl = searchParams.get('redirect') || '/dashboard';
+      setTimeout(() => {
+        router.push(redirectUrl);
+      }, 600);
+    }
+  };
+
+  const handleAutoFill = () => {
+    setEmail('dr.adithya@mediguard.ai');
+    setKeyPhrase('MediGuard2026!Secure');
+    setInstitutionCode('MEDIGUARD-DEMO');
+    toast.info('Default credentials auto-filled!');
+  };
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -115,6 +146,40 @@ function LoginForm() {
           <span className="text-[10px] text-text-muted mt-1 leading-normal">
             Authorized clinical staff only. Logs audited for HIPAA compliance.
           </span>
+        </div>
+      </div>
+
+      {/* 1-Click Guest Clinician Access Card */}
+      <div className="p-4 rounded-xl bg-gradient-to-r from-teal-500/15 via-teal-900/10 to-blue-500/10 border border-teal-500/30 flex flex-col gap-2.5 shadow-md">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-bold text-teal-300 flex items-center gap-1.5">
+            <Zap className="h-4 w-4 text-amber-400" />
+            Reviewer & Demo Quick Access
+          </span>
+          <span className="text-[10px] font-mono text-teal-400/80">
+            No Setup Required
+          </span>
+        </div>
+        <p className="text-[11px] text-text-muted leading-tight">
+          Explore all clinical features, multimodal vision, and parallel multi-agent diagnostics instantly.
+        </p>
+        <div className="flex items-center gap-2 pt-1">
+          <button
+            type="button"
+            onClick={handleQuickDemoLogin}
+            disabled={isLoading}
+            className="flex-1 py-2 px-3 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition-all shadow-[0_0_10px_rgba(13,148,136,0.3)] hover:scale-[1.01] active:scale-95 disabled:opacity-50 text-center"
+          >
+            ⚡ 1-Click Guest Clinician Login
+          </button>
+          <button
+            type="button"
+            onClick={handleAutoFill}
+            disabled={isLoading}
+            className="py-2 px-3 rounded-lg bg-surface border border-border/80 text-text-secondary hover:text-text-primary text-xs font-medium transition-all"
+          >
+            Auto-Fill
+          </button>
         </div>
       </div>
 
@@ -242,13 +307,33 @@ function LoginForm() {
         )}
       </AnimatePresence>
 
+      {/* Default Credentials Reference Box */}
+      <div className="p-3.5 rounded-xl bg-background/60 border border-border/60 text-[11px] font-mono text-text-muted space-y-1.5">
+        <div className="font-sans font-bold text-text-secondary text-xs flex items-center gap-1.5 mb-1.5">
+          <KeyRound className="h-3.5 w-3.5 text-teal-400" />
+          Default Reviewer Credentials:
+        </div>
+        <div className="flex justify-between items-center text-[10px]">
+          <span className="text-text-muted">Email:</span>
+          <span className="text-teal-300 font-semibold select-all font-mono">dr.adithya@mediguard.ai</span>
+        </div>
+        <div className="flex justify-between items-center text-[10px]">
+          <span className="text-text-muted">Key Phrase:</span>
+          <span className="text-teal-300 font-semibold select-all font-mono">MediGuard2026!Secure</span>
+        </div>
+        <div className="flex justify-between items-center text-[10px]">
+          <span className="text-text-muted">Institution:</span>
+          <span className="text-teal-300 font-semibold select-all font-mono">MEDIGUARD-DEMO</span>
+        </div>
+      </div>
+
       {/* Audit notice footer */}
-      <div className="flex flex-col gap-1 items-center mt-2">
+      <div className="flex flex-col gap-1 items-center mt-1">
         <span className="text-[10px] text-text-muted leading-tight">
-          Need access? Contact your institution administrator to create your account.
+          Need custom access? Contact your institution administrator to provision accounts.
         </span>
-        <span className="text-[9px] text-[#0d9488]/90 font-mono mt-1">
-          🔒 All sessions are encrypted and audited
+        <span className="text-[9px] text-[#0d9488]/90 font-mono mt-0.5">
+          🔒 All clinical sessions are encrypted and audited
         </span>
       </div>
     </motion.div>

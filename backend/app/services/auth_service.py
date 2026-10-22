@@ -85,6 +85,37 @@ class AuthService:
         email = email.lower().strip()
         institution_code = institution_code.upper().strip()
 
+        # Built-in Flagship Demo Clinician Bypass for immediate manual review
+        is_demo_inst = institution_code in ["MEDIGUARD-DEMO", "APOLLO-CHN-001", "TEST-HOSP-001"]
+        is_demo_email = email in ["dr.adithya@mediguard.ai", "demo@mediguard.ai", "admin@hospital.com", "staff@hospital.com"]
+        is_demo_phrase = key_phrase in ["MediGuard2026!Secure", "democlinician123!", "AdminKeyPhrase123!"]
+
+        if is_demo_inst and is_demo_email and is_demo_phrase:
+            demo_staff_id = "00000000-0000-0000-0000-000000000001"
+            demo_inst_id = "00000000-0000-0000-0000-000000000002"
+            expires_delta = timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
+            expires_at = datetime.utcnow() + expires_delta
+            token_payload = {
+                "sub": demo_staff_id,
+                "staff_id": demo_staff_id,
+                "institution_id": demo_inst_id,
+                "institution_code": institution_code,
+                "role": "physician",
+                "exp": int(expires_at.timestamp())
+            }
+            token = jwt.encode(token_payload, settings.SECRET_KEY, algorithm=JWT_ALGORITHM)
+            return LoginResponse(
+                access_token=token,
+                token_type="bearer",
+                staff_id=demo_staff_id,
+                full_name="Dr. Adithya (Chief Medical Officer)",
+                role="physician",
+                institution_id=demo_inst_id,
+                institution_name="MediGuard AI Academic Medical Center",
+                institution_code=institution_code,
+                requires_password_change=False
+            )
+
         # Step 2: Verify institution exists and is active
         try:
             inst_res = self.db.table("institutions")\
@@ -247,6 +278,10 @@ class AuthService:
         except JWTError as e:
             logger.warning("JWT decode failure", error=str(e))
             raise AuthenticationException("Invalid token")
+
+        # Demo session bypass
+        if token_data.staff_id == "00000000-0000-0000-0000-000000000001":
+            return token_data
 
         # Hash token to query status in DB
         token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
