@@ -70,8 +70,10 @@ async def lifespan(app: FastAPI):
     # 3. Log all registered routes at DEBUG level
     logger.debug("Registering clinical endpoint routers...")
     for route in app.routes:
+        route_path = getattr(route, "path", getattr(route, "path_format", str(route)))
+        route_name = getattr(route, "name", type(route).__name__)
         methods = getattr(route, "methods", set())
-        logger.debug("Indexed Route Handler", path=route.path, name=route.name, methods=list(methods))
+        logger.debug("Indexed Route Handler", path=route_path, name=route_name, methods=list(methods))
         
     yield
     
