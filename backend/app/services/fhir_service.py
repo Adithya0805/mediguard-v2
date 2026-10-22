@@ -241,20 +241,40 @@ class FHIRBundleGenerator:
         session_id: str,
         index: int
     ) -> Dict[str, Any]:
-        """Constructs FHIR Observation representing vital sign recordings."""
-        # LOINC code map
+        """Constructs FHIR Observation representing vital sign recordings and laboratory analytes."""
+        # Comprehensive LOINC ontology map
         loinc_map = {
-            "bp": ("85354-9", "Blood pressure panel"),
-            "heart_rate": ("8867-4", "Heart rate"),
-            "temperature": ("8310-5", "Body temperature"),
-            "spo2": ("59408-5", "Oxygen saturation"),
-            "weight": ("29463-7", "Body weight"),
-            "height": ("8302-2", "Body height")
+            "bp": ("85354-9", "Blood pressure panel", "vital-signs", "Vital Signs"),
+            "heart_rate": ("8867-4", "Heart rate", "vital-signs", "Vital Signs"),
+            "temperature": ("8310-5", "Body temperature", "vital-signs", "Vital Signs"),
+            "spo2": ("59408-5", "Oxygen saturation", "vital-signs", "Vital Signs"),
+            "weight": ("29463-7", "Body weight", "vital-signs", "Vital Signs"),
+            "height": ("8302-2", "Body height", "vital-signs", "Vital Signs"),
+            # Multimodal Laboratory Biomarkers
+            "troponin_i": ("10839-9", "Troponin I.cardiac [Mass/volume] in Serum or Plasma", "laboratory", "Laboratory"),
+            "troponin_t": ("6598-7", "Troponin T.cardiac [Mass/volume] in Serum or Plasma", "laboratory", "Laboratory"),
+            "potassium": ("2823-3", "Potassium [Moles/volume] in Serum or Plasma", "laboratory", "Laboratory"),
+            "sodium": ("2951-2", "Sodium [Moles/volume] in Serum or Plasma", "laboratory", "Laboratory"),
+            "glucose": ("2345-7", "Glucose [Mass/volume] in Serum or Plasma", "laboratory", "Laboratory"),
+            "lactate": ("2524-7", "Lactate [Moles/volume] in Blood", "laboratory", "Laboratory"),
+            "creatinine": ("2160-0", "Creatinine [Mass/volume] in Serum or Plasma", "laboratory", "Laboratory"),
+            "bun": ("3094-0", "Urea nitrogen [Mass/volume] in Blood", "laboratory", "Laboratory"),
+            "bicarbonate": ("2028-9", "Carbon dioxide, total [Moles/volume] in Serum or Plasma", "laboratory", "Laboratory"),
+            "wbc": ("6690-2", "Leukocytes [#/volume] in Blood", "laboratory", "Laboratory"),
+            "hemoglobin": ("718-7", "Hemoglobin [Mass/volume] in Blood", "laboratory", "Laboratory"),
+            "platelets": ("777-3", "Platelets [#/volume] in Blood", "laboratory", "Laboratory"),
+            "d_dimer": ("48065-7", "Fibrin D-dimer FEU [Mass/volume] in Blood", "laboratory", "Laboratory"),
+            "bnp": ("30934-4", "Natriuretic peptide B [Mass/volume] in Serum or Plasma", "laboratory", "Laboratory"),
+            "ph": ("2744-1", "pH of Arterial blood", "laboratory", "Laboratory"),
         }
 
-        loinc_code, loinc_display = loinc_map.get(
-            vital_key, ("unknown", vital_key.replace('_', ' ').title())
+        mapping = loinc_map.get(
+            vital_key, ("unknown", vital_key.replace('_', ' ').title(), "vital-signs", "Vital Signs")
         )
+        loinc_code = mapping[0]
+        loinc_display = mapping[1]
+        category_code = mapping[2] if len(mapping) > 2 else "vital-signs"
+        category_display = mapping[3] if len(mapping) > 3 else "Vital Signs"
 
         return {
             "resourceType": "Observation",
@@ -263,8 +283,8 @@ class FHIRBundleGenerator:
             "category": [{
                 "coding": [{
                     "system": "http://terminology.hl7.org/CodeSystem/observation-category",
-                    "code": "vital-signs",
-                    "display": "Vital Signs"
+                    "code": category_code,
+                    "display": category_display
                 }]
             }],
             "code": {

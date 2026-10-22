@@ -10,11 +10,12 @@ LLM used: get_fast_llm() — Claude Haiku (speed over depth at intake stage)
 """
 import json
 from datetime import datetime, timezone
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 from app.llm.router import LLMRouter
 from app.rag.retriever import MedicalRetriever
 from app.schemas.agent import AgentState
+from app.agents.multimodal_agent import MultimodalAgent
 from app.utils.logger import get_logger
 from app.utils.websocket_manager import ws_manager
 from app.schemas.websocket import AgentEvent, AgentEventType
@@ -57,7 +58,8 @@ class IntakeAgent:
     def __init__(self, llm_router: LLMRouter, retriever: MedicalRetriever):
         self.llm_router = llm_router
         self.retriever = retriever
-        logger.info("IntakeAgent initialised")
+        self.multimodal_agent = MultimodalAgent(llm_router, retriever)
+        logger.info("IntakeAgent initialised with MultimodalAgent")
 
     async def run(self, state: AgentState) -> AgentState:
         """
@@ -93,7 +95,15 @@ class IntakeAgent:
             logger.warning("Failed to broadcast agent_started event via websocket", session_id=session_id, error=str(ws_err))
 
         agent_start_time = datetime.utcnow()
+
+        # Step 0: Process any multimodal attachments or presets first
         patient_data = state.get("patient_data", {})
+        if patient_data.get("attachments") or patient_data.get("multimodal_preset_id"):
+            try:
+                state = await self.multimodal_agent.run(state)
+                patient_data = state.get("patient_data", {})
+            except Exception as mm_err:
+                logger.error("Multimodal processing in IntakeAgent failed", session_id=session_id, error=str(mm_err))
 
         try:
             llm = self.llm_router.route("intake")
@@ -138,6 +148,17 @@ class IntakeAgent:
             if parsed is None:
                 raise ValueError("LLM returned unparseable JSON for intake")
 
+            # Enrich red flags with any multimodal panic alerts
+            mm_alerts = state.get("multimodal_data", {}).get("critical_alerts", [])
+            if mm_alerts:
+                existing_flags = parsed.setdefault("red_flags", [])
+                for alert in mm_alerts:
+                    if alert not in existing_flags:
+                        existing_flags.append(alert)
+
+            if state.get("multimodal_data", {}).get("has_critical_findings"):
+                state["urgency_level"] = "critical"
+
             state["parsed_intake"]     = parsed
             state["intake_confidence"] = float(parsed.get("intake_confidence", 0.5))
 
@@ -179,7 +200,8 @@ class IntakeAgent:
             state["agent_errors"] = state.get("agent_errors", []) + [error_record]
 
             # Set safe fallback intake so downstream agents can still run
-            state["parsed_intake"] = _build_fallback_intake(patient_data)
+            mm_alerts = state.get("multimodal_data", {}).get("critical_alerts", [])
+            state["parsed_intake"] = _build_fallback_intake(patient_data, red_flags=mm_alerts)
             state["intake_confidence"] = 0.1
 
             # Broadcast failed event
@@ -252,7 +274,7 @@ def _build_error_record(agent_name: str, error_message: str) -> Dict[str, Any]:
     }
 
 
-def _build_fallback_intake(patient_data: Dict[str, Any]) -> Dict[str, Any]:
+def _build_fallback_intake(patient_data: Dict[str, Any], red_flags: Optional[List[str]] = None) -> Dict[str, Any]:
     """Minimal safe fallback intake when LLM parsing fails."""
     return {
         "patient_summary":           f"Patient age {patient_data.get('patient_age', 'unknown')} presenting with {patient_data.get('chief_complaint', 'unspecified complaint')}.",
@@ -261,6 +283,6 @@ def _build_fallback_intake(patient_data: Dict[str, Any]) -> Dict[str, Any]:
         "symptom_duration_estimate": "unknown",
         "relevant_history":          patient_data.get("medical_history", []),
         "relevant_medications":      patient_data.get("current_medications", []),
-        "red_flags":                 [],
+        "red_flags":                 red_flags or [],
         "intake_confidence":         0.1,
     }

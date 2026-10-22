@@ -18,6 +18,10 @@ class PatientInput(BaseModel):
         default_factory=dict, 
         description="Patient vitals mapping (bp, heart_rate, temperature, spo2, weight, height)"
     )
+    attachments: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="Optional multimodal attachments (e.g. ECG strips, lab panel images, medical PDFs)"
+    )
 
     @field_validator("patient_age")
     @classmethod

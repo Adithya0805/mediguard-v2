@@ -8,6 +8,8 @@ Provides:
 - sample patient payload factories
 - sample session data factories
 """
+import os
+os.environ["AWS_EC2_METADATA_DISABLED"] = "true"
 import uuid
 from datetime import datetime, timezone
 from typing import AsyncGenerator

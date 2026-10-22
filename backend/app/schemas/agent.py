@@ -26,6 +26,10 @@ class AgentState(TypedDict):
     parsed_intake:          Dict[str, Any]  # Structured intake parsing result
     intake_confidence:      float           # 0.0–1.0 parsing confidence score
 
+    # ── Multimodal vision output (Labs, ECG, Clinical Images) ───────────────
+    multimodal_data:        Dict[str, Any]  # Analyzed lab biomarkers, ECG findings, image diagnostics
+    critical_biomarkers:    List[Dict[str, Any]] # Panic-value laboratory and ECG red flags
+
     # ── Symptom agent output ─────────────────────────────────────────────────
     symptoms_analysis:      Dict[str, Any]  # Full symptom analysis result dict
     symptom_severity:       str             # mild / moderate / severe / critical
@@ -88,6 +92,10 @@ def build_initial_state(session_id: str, patient_data: Dict[str, Any]) -> AgentS
         # Intake
         parsed_intake={},
         intake_confidence=0.0,
+
+        # Multimodal
+        multimodal_data={},
+        critical_biomarkers=[],
 
         # Symptom
         symptoms_analysis={},

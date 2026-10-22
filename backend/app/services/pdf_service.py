@@ -1,6 +1,6 @@
 from io import BytesIO
 from datetime import datetime
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, Spacer, KeepTogether
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -256,6 +256,56 @@ class ClinicalPDFGenerator:
         t.setStyle(TableStyle(t_style))
         return t
 
+    def _build_multimodal_table(self, biomarkers: List[Dict[str, Any]], ecg: Optional[Dict[str, Any]] = None) -> Table:
+        """Builds a diagnostic laboratory biomarkers and ECG telemetry table."""
+        header = [
+            Paragraph("<b>Analyte / Test</b>", self.TableHeader),
+            Paragraph("<b>Result</b>", self.TableHeader),
+            Paragraph("<b>Reference Range</b>", self.TableHeader),
+            Paragraph("<b>Clinical Interpretation</b>", self.TableHeader),
+            Paragraph("<b>LOINC Code</b>", self.TableHeader)
+        ]
+
+        data = [header]
+        t_style = [
+            ('BACKGROUND', (0, 0), (-1, 0), self.PRIMARY_BLUE),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('BOX', (0, 0), (-1, -1), 0.5, self.BORDER_GRAY),
+            ('INNERGRID', (0, 0), (-1, -1), 0.5, self.BORDER_GRAY),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ]
+
+        for idx, b in enumerate(biomarkers):
+            name = b.get("name", "N/A")
+            val = f"{b.get('value')} {b.get('unit', '')}"
+            ref = b.get("reference_range", "N/A")
+            interp = b.get("clinical_interpretation") or str(b.get("status", "Normal"))
+            loinc = b.get("loinc_code") or "N/A"
+            is_crit = b.get("criticality_flag", False)
+
+            val_color = "#c0392b" if is_crit else ("#d35400" if "abnormal" in str(b.get("status", "")).lower() else "#2c3e50")
+            val_style = ParagraphStyle(f'ValStyle_{idx}', parent=self.TableCell, fontName='Helvetica-Bold', textColor=HexColor(val_color))
+
+            row = [
+                Paragraph(f"<b>{name}</b>", self.TableCell),
+                Paragraph(val, val_style),
+                Paragraph(ref, self.TableCell),
+                Paragraph(interp, self.TableCell),
+                Paragraph(f"<font size=7 color='#7f8c8d'>{loinc}</font>", self.TableCell)
+            ]
+            data.append(row)
+
+            if is_crit:
+                t_style.append(('BACKGROUND', (0, idx + 1), (-1, idx + 1), HexColor("#fadbd8")))
+            elif (idx + 1) % 2 == 0:
+                t_style.append(('BACKGROUND', (0, idx + 1), (-1, idx + 1), self.BG_LIGHT))
+
+        t = Table(data, colWidths=[120, 90, 95, 165, 70])
+        t.setStyle(TableStyle(t_style))
+        return t
+
     def _add_section_header(self, text: str, elements: List[Any]):
         """Helper to append a consistent visual divider and section header."""
         elements.append(Spacer(1, 8))
@@ -455,6 +505,23 @@ class ClinicalPDFGenerator:
             ('TOPPADDING', (0, 0), (-1, -1), 4),
         ]))
         elements.append(urgency_table)
+
+        # Multimodal Diagnostics & Telemetry (if present)
+        mm_data = report_data.get('multimodal_data') or patient_data.get('multimodal_data') or {}
+        biomarkers = mm_data.get('biomarkers', report_data.get('extracted_biomarkers', []))
+        ecg = mm_data.get('ecg_interpretation')
+        if biomarkers or ecg:
+            self._add_section_header("MULTIMODAL DIAGNOSTICS & TELEMETRY", elements)
+            if ecg:
+                stemi_alert = " <font color='#c0392b'><b>[CRITICAL STEMI ALERT]</b></font>" if ecg.get('is_stemi') else ""
+                ecg_p = f"<b>12-Lead ECG:</b> {ecg.get('rhythm', 'Normal Sinus Rhythm')} at {ecg.get('heart_rate_bpm', 'N/A')} bpm{stemi_alert}"
+                if ecg.get('st_elevation_leads'):
+                    ecg_p += f"<br/><b>ST-Elevation Leads:</b> {', '.join(ecg.get('st_elevation_leads'))}"
+                elements.append(Paragraph(ecg_p, self.BodyText))
+                elements.append(Spacer(1, 4))
+            if biomarkers:
+                elements.append(self._build_multimodal_table(biomarkers, ecg))
+                elements.append(Spacer(1, 6))
 
         # 4. Executive Summary
         self._add_section_header("EXECUTIVE SUMMARY", elements)

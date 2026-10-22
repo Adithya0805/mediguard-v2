@@ -304,6 +304,17 @@ class DrugAgent:
                     if not data.get("warnings") and not data.get("contraindications"):
                         all_warnings_text += "  - No warnings or contraindications found on label.\n"
 
+                # Weave multimodal laboratory biomarkers into contraindication screening
+                mm_data = state.get("multimodal_data", {})
+                biomarkers = mm_data.get("biomarkers", [])
+                if biomarkers:
+                    lab_text = "\n=== PATIENT ACUTE LABORATORY BIOMARKERS ===\n"
+                    for b in biomarkers:
+                        crit_tag = " [PANIC VALUE]" if b.get("criticality_flag") else ""
+                        lab_text += f"• {b.get('name')}: {b.get('value')} {b.get('unit')} (Status: {str(b.get('status')).upper()}){crit_tag}\n"
+                    lab_text += "=== END LAB DATA ===\n"
+                    all_warnings_text += f"\n{lab_text}\nIMPORTANT: Check if any current medications are strictly contraindicated with the above laboratory values (e.g. Potassium > 5.5 mEq/L with ACE inhibitors/ARBs/spironolactone; Creatinine > 2.0 mg/dL with Metformin/NSAIDs; Thrombocytopenia with Anticoagulants).\n"
+
                 user_content = _ENRICHED_USER_PROMPT_TEMPLATE.format(
                     current_medications = json.dumps(current_medications),
                     allergies           = json.dumps(allergies),

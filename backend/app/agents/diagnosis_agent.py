@@ -156,6 +156,24 @@ class DiagnosisAgent:
         first_context   = state.get("retrieved_context", "")
         combined_context = f"{first_context}\n\n{'='*60}\n\nAdditional Diagnostic Context:\n\n{second_context}"
 
+        # Weave in Multimodal Lab Biomarkers & ECG Findings if present
+        multimodal_data = state.get("multimodal_data", {})
+        if multimodal_data.get("biomarkers") or multimodal_data.get("ecg_interpretation"):
+            mm_section = "\n\n" + "="*60 + "\nMULTIMODAL DIAGNOSTIC LABS & ECG FINDINGS:\n"
+            if multimodal_data.get("ecg_interpretation"):
+                ecg = multimodal_data["ecg_interpretation"]
+                mm_section += f"• 12-Lead ECG Rhythm: {ecg.get('rhythm')} ({ecg.get('heart_rate_bpm', 'N/A')} bpm)\n"
+                if ecg.get("is_stemi"):
+                    mm_section += f"• CRITICAL STEMI ALERT: ST-segment elevation detected in leads {', '.join(ecg.get('st_elevation_leads', []))}\n"
+                for p in ecg.get("pathological_findings", []):
+                    mm_section += f"  - {p}\n"
+            for b in multimodal_data.get("biomarkers", []):
+                crit_tag = " [PANIC VALUE]" if b.get("criticality_flag") else ""
+                mm_section += f"• {b.get('name')}: {b.get('value')} {b.get('unit')} (Ref: {b.get('reference_range')}) — {str(b.get('status')).upper()}{crit_tag}\n"
+                if b.get("clinical_interpretation"):
+                    mm_section += f"  Note: {b.get('clinical_interpretation')}\n"
+            combined_context += mm_section
+
         # Extend context sources
         from app.rag.retriever import get_citations_list
         new_sources = [r.get("citation") or "Clinical Guideline Reference" for r in second_rag_results]
