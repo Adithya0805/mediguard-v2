@@ -18,7 +18,8 @@ export const patientIntakeSchema = z.object({
   medical_history: z.array(z.string()).default([]),
   allergies: z.array(z.string()).default([]),
   current_medications: z.array(z.string()).default([]),
-  vitals: vitalsSchema.default({})
+  vitals: vitalsSchema.default({}),
+  attachments: z.array(z.any()).default([])
 });
 
 export type PatientIntakeFormValues = z.infer<typeof patientIntakeSchema>;

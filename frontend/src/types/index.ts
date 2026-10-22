@@ -10,6 +10,57 @@ export interface VitalsData {
   height?: number | null;
 }
 
+export type BiomarkerStatus = 'normal' | 'low' | 'high' | 'critical_low' | 'critical_high';
+
+export interface ExtractedBiomarker {
+  name: string;
+  value: number;
+  unit: string;
+  reference_range: string;
+  status: BiomarkerStatus;
+  loinc_code?: string;
+  criticality_flag: boolean;
+  clinical_interpretation?: string;
+}
+
+export interface ECGAnalysis {
+  rhythm: string;
+  heart_rate_bpm?: number;
+  st_elevation_detected: boolean;
+  st_elevation_leads: string[];
+  is_stemi: boolean;
+}
+
+export interface MultimodalData {
+  biomarkers?: ExtractedBiomarker[];
+  ecg_interpretation?: ECGAnalysis;
+  raw_findings_summary?: string;
+}
+
+export interface MultimodalPreset {
+  id: string;
+  title: string;
+  category: string;
+  summary: string;
+  sample_biomarkers: ExtractedBiomarker[];
+  sample_ecg?: ECGAnalysis;
+}
+
+export interface MultimodalAttachment {
+  filename: string;
+  content_type: string;
+  base64_data?: string;
+  modality_hint?: string;
+}
+
+export interface PatientDischargeSummary {
+  core_condition_explained: string;
+  warning_signs_immediate_er: string[];
+  home_care_instructions: string[];
+  follow_up_timeline: string;
+  medication_guidance: string;
+}
+
 export interface PatientInput {
   patient_name: string;
   age: number;
@@ -20,6 +71,7 @@ export interface PatientInput {
   current_medications: string[];
   allergies: string[];
   vitals: VitalsData;
+  attachments?: MultimodalAttachment[];
 }
 
 export interface PatientSessionResponse {
@@ -76,6 +128,8 @@ export interface ClinicalReport {
   report_pdf_url: string | null;
   fhir_bundle: Record<string, unknown> | null;
   reviewed_by_agent: string;
+  multimodal_data?: MultimodalData | null;
+  patient_discharge_summary?: PatientDischargeSummary | null;
 }
 
 export interface ClinicalReportResponse {
@@ -91,6 +145,8 @@ export interface ClinicalReportResponse {
   report_pdf_url: string | null;
   fhir_bundle: Record<string, unknown> | null;
   reviewed_by_agent: string;
+  multimodal_data?: MultimodalData | null;
+  patient_discharge_summary?: PatientDischargeSummary | null;
 }
 
 export interface AgentRun {

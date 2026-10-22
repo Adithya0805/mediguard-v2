@@ -14,7 +14,8 @@ import {
   HelpCircle,
   Loader2, 
   ArrowRight,
-  ShieldCheck
+  ShieldCheck,
+  FlaskConical
 } from 'lucide-react';
 import UrgencyBadge from '@/components/shared/UrgencyBadge';
 
@@ -30,35 +31,42 @@ const AGENTS = [
     label: "Intake Agent", 
     description: "Parsing patient data", 
     icon: ClipboardList,
-    estimatedSeconds: 8
+    estimatedSeconds: 5
+  },
+  { 
+    id: "multimodal", 
+    label: "Vision & Labs Agent", 
+    description: "LOINC biomarker & ECG intake", 
+    icon: FlaskConical,
+    estimatedSeconds: 6
   },
   { 
     id: "symptom", 
     label: "Symptom Agent", 
     description: "Analyzing symptoms + RAG", 
     icon: Activity,
-    estimatedSeconds: 12
+    estimatedSeconds: 10
   },
   { 
     id: "diagnosis", 
     label: "Diagnosis Agent", 
-    description: "Generating differential DDx", 
+    description: "Parallel DDx Reasoning", 
     icon: Search,
-    estimatedSeconds: 20
+    estimatedSeconds: 15
   },
   { 
     id: "drug_check", 
     label: "Drug Agent", 
-    description: "Checking interactions", 
+    description: "Parallel Safety Screening", 
     icon: Pill,
     estimatedSeconds: 8
   },
   { 
     id: "report", 
     label: "Report Agent", 
-    description: "Compiling clinical report", 
+    description: "Compiling Dual Care Reports", 
     icon: FileText,
-    estimatedSeconds: 15
+    estimatedSeconds: 12
   }
 ];
 
@@ -125,6 +133,10 @@ export default function LiveAgentPipeline({ sessionId, initialStatus, onComplete
         return data.intake_confidence !== undefined 
           ? `Confidence: ${Math.round(data.intake_confidence * 100)}%` 
           : 'Completed';
+      case 'multimodal':
+        if (data?.ecg_interpretation?.is_stemi) return '🚨 CRITICAL STEMI in ECG';
+        if (data?.biomarkers?.length) return `${data.biomarkers.length} LOINC markers extracted`;
+        return 'Labs & ECG Processed';
       case 'symptom':
         return data.symptom_severity 
           ? `Severity: ${data.symptom_severity}` 

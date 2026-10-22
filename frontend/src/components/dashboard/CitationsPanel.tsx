@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { getRagStatus, runRagIngestion, RagStatusResponse } from '@/lib/api';
 import { toast } from 'sonner';
 import { 
-  Database, RefreshCw, AlertTriangle, CheckCircle, Info, Play, Network, HelpCircle
+  Database, RefreshCw, AlertTriangle, CheckCircle, Info, Play, Network, HelpCircle, FileText, Cpu
 } from 'lucide-react';
 
 export default function CitationsPanel() {

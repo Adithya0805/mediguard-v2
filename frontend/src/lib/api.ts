@@ -15,7 +15,9 @@ import {
   AnalyticsDrugInteractions,
   AnalyticsDemographics,
   AnalyticsAnomaly,
-  AnalyticsDashboardResponse
+  AnalyticsDashboardResponse,
+  MultimodalPreset,
+  MultimodalAttachment
 } from '@/types';
 
 // In Vercel production, use relative URL so requests go through vercel.json rewrites → Railway proxy
@@ -511,6 +513,26 @@ export async function runRagIngestion(topic: 'quick' | 'priority' | 'full' = 'qu
     status: string;
     message: string;
   }>(`/api/v1/admin/ingest-rag?topic=${topic}`);
+  return res.data;
+}
+
+export async function getMultimodalPresets(): Promise<MultimodalPreset[]> {
+  const res = await api.get<MultimodalPreset[]>('/api/v1/multimodal/presets');
+  return res.data;
+}
+
+export async function getMultimodalPreset(presetId: string): Promise<MultimodalPreset> {
+  const res = await api.get<MultimodalPreset>(`/api/v1/multimodal/presets/${presetId}`);
+  return res.data;
+}
+
+export async function analyzeMultimodalData(payload: MultimodalAttachment): Promise<any> {
+  const res = await api.post('/api/v1/multimodal/analyze', payload);
+  return res.data;
+}
+
+export async function attachPresetToSession(sessionId: string, presetId: string): Promise<any> {
+  const res = await api.post(`/api/v1/multimodal/attach-preset/${sessionId}?preset_id=${presetId}`);
   return res.data;
 }
 

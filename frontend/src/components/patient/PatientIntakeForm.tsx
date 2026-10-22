@@ -15,7 +15,9 @@ import SymptomTagInput from './SymptomTagInput';
 import SmartSymptomInput from './SmartSymptomInput';
 import VoiceRecorder from './VoiceRecorder';
 import VitalsInput from './VitalsInput';
+import MultimodalUploader from './MultimodalUploader';
 import FHIRImportModal from './FHIRImportModal';
+import { MultimodalAttachment } from '@/types';
 import { CheckCircle2, Mic, PenLine, AlertTriangle } from 'lucide-react';
 import { 
   User, 
@@ -93,13 +95,27 @@ export default function PatientIntakeForm() {
         spo2: undefined,
         weight: undefined,
         height: undefined
-      }
+      },
+      attachments: []
     }
   });
 
   const vitalsValues = watch('vitals') || {};
   const currentSymptoms = watch('symptoms') || [];
   const chiefComplaintVal = watch('chief_complaint') || '';
+
+  const handleMultimodalChange = (attachments: MultimodalAttachment[], enrichedVitals?: Record<string, any>) => {
+    setValue('attachments', attachments);
+    if (enrichedVitals?.heart_rate) {
+      setValue('vitals.heart_rate', enrichedVitals.heart_rate);
+    }
+    if (enrichedVitals?.bp) {
+      setValue('vitals.bp', enrichedVitals.bp);
+    }
+    if (enrichedVitals?.spo2) {
+      setValue('vitals.spo2', enrichedVitals.spo2);
+    }
+  };
 
   const handleNextStep = async () => {
     let isValid = false;
@@ -171,7 +187,7 @@ export default function PatientIntakeForm() {
     { num: 1, label: 'Demographics', icon: User },
     { num: 2, label: 'Symptoms', icon: Stethoscope },
     { num: 3, label: 'Medications', icon: Pill },
-    { num: 4, label: 'Vitals', icon: HeartPulse }
+    { num: 4, label: 'Vitals & Labs', icon: HeartPulse }
   ];
 
   return (
@@ -557,6 +573,10 @@ export default function PatientIntakeForm() {
               <VitalsInput
                 register={register}
                 vitalsValues={vitalsValues}
+              />
+
+              <MultimodalUploader
+                onAttachmentChange={handleMultimodalChange}
               />
             </motion.div>
           )}

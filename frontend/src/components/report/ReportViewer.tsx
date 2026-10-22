@@ -22,7 +22,13 @@ import {
   Terminal,
   Activity,
   CloudLightning,
-  Check
+  Check,
+  FlaskConical,
+  HeartHandshake,
+  AlertOctagon,
+  AlertTriangle,
+  HeartPulse,
+  ShieldAlert
 } from 'lucide-react';
 
 interface ReportViewerProps {
@@ -41,7 +47,7 @@ export default function ReportViewer({
 }: ReportViewerProps) {
   const RenderFHIRViewer = PropFHIRViewer || FHIRViewer;
   const RenderPDFDownloadManager = PropPDFDownloadManager || PDFDownloadManager;
-  const [activeTab, setActiveTab] = useState<'summary' | 'ddx' | 'workup' | 'meds' | 'fhir'>('summary');
+  const [activeTab, setActiveTab] = useState<'summary' | 'ddx' | 'workup' | 'multimodal' | 'meds' | 'discharge' | 'fhir'>('summary');
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSynced, setIsSynced] = useState(false);
@@ -55,6 +61,8 @@ export default function ReportViewer({
     reviewed_by_agent = 'MediGuard AI',
     fhir_bundle = null,
     clinical_summary = '',
+    multimodal_data = null,
+    patient_discharge_summary = null,
   } = report || {};
 
   useEffect(() => {
@@ -126,7 +134,9 @@ export default function ReportViewer({
     { id: 'summary', label: 'Clinical Summary', icon: FileText },
     { id: 'ddx', label: 'Differential Diagnosis', icon: Stethoscope },
     { id: 'workup', label: 'Diagnostics & Workup', icon: Activity },
+    { id: 'multimodal', label: 'Labs & ECG Telemetry', icon: FlaskConical },
     { id: 'meds', label: 'Medications Screening', icon: Pill },
+    { id: 'discharge', label: 'Patient Care Guide', icon: HeartHandshake },
     { id: 'fhir', label: 'FHIR R4 Schema', icon: Database },
   ] as const;
 
@@ -360,6 +370,152 @@ export default function ReportViewer({
           </div>
         )}
 
+        {activeTab === 'multimodal' && (
+          <div className="flex flex-col gap-6 w-full text-left">
+            {/* Multimodal Telemetry Header */}
+            <div className="p-6 rounded-2xl bg-surface border border-border flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h3 className="font-sans font-bold text-base text-text-primary flex items-center gap-2">
+                  <FlaskConical className="h-5 w-5 text-teal-400" />
+                  Diagnostic Telemetry & Biomarker Panel
+                </h3>
+                <p className="text-xs text-text-secondary mt-1">
+                  Quantitative analytes mapped to standard LOINC codes and Joint Commission critical panic values.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 font-mono text-[11px]">
+                <span className="px-2.5 py-1 rounded-lg bg-teal-500/10 text-teal-300 border border-teal-500/20">
+                  HL7 FHIR R4 Observations
+                </span>
+                <span className="px-2.5 py-1 rounded-lg bg-primary/10 text-primary border border-primary/20">
+                  LOINC Standards
+                </span>
+              </div>
+            </div>
+
+            {/* 12-Lead ECG Analysis Box */}
+            {multimodal_data?.ecg_interpretation ? (
+              <div className={`p-6 rounded-2xl border ${
+                multimodal_data.ecg_interpretation.is_stemi
+                  ? 'bg-rose-950/20 border-rose-500/40 text-rose-100 shadow-[0_0_15px_rgba(244,63,94,0.15)]'
+                  : 'bg-surface border-border text-text-primary'
+              }`}>
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                  <div className="flex items-center gap-2">
+                    <HeartPulse className={`h-5 w-5 ${multimodal_data.ecg_interpretation.is_stemi ? 'text-rose-400 animate-pulse' : 'text-teal-400'}`} />
+                    <h4 className="font-bold text-sm">
+                      12-Lead Electrocardiogram (ECG) Interpretation
+                    </h4>
+                  </div>
+                  {multimodal_data.ecg_interpretation.is_stemi && (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500 text-white text-xs font-bold uppercase tracking-wider animate-pulse">
+                      <AlertOctagon className="h-4 w-4" />
+                      CRITICAL STEMI ALERT — IMMEDIATE CATH LAB ACTIVATION
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 font-mono text-xs">
+                  <div className="p-3 rounded-xl bg-background/50 border border-border/60">
+                    <span className="text-[10px] text-text-muted block uppercase">Ventricular Rhythm</span>
+                    <span className="font-bold text-sm text-text-primary">{multimodal_data.ecg_interpretation.rhythm}</span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-background/50 border border-border/60">
+                    <span className="text-[10px] text-text-muted block uppercase">Heart Rate</span>
+                    <span className="font-bold text-sm text-text-primary">{multimodal_data.ecg_interpretation.heart_rate_bpm ? `${multimodal_data.ecg_interpretation.heart_rate_bpm} BPM` : 'N/A'}</span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-background/50 border border-border/60">
+                    <span className="text-[10px] text-text-muted block uppercase">ST-Elevation Distribution</span>
+                    <span className="font-bold text-sm text-rose-400">
+                      {multimodal_data.ecg_interpretation.st_elevation_detected 
+                        ? `Leads: ${multimodal_data.ecg_interpretation.st_elevation_leads?.join(', ')}`
+                        : 'None detected'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {/* Biomarker Table */}
+            {multimodal_data?.biomarkers && multimodal_data.biomarkers.length > 0 ? (
+              <div className="p-6 rounded-2xl bg-surface border border-border shadow-md overflow-hidden">
+                <h4 className="font-bold text-sm text-text-primary mb-4 flex items-center gap-2">
+                  <span>Serum Analytes & Quantitative Biomarkers</span>
+                  <span className="text-xs font-mono text-text-muted font-normal">
+                    ({multimodal_data.biomarkers.length} analytes tested)
+                  </span>
+                </h4>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-border text-[10px] font-bold uppercase tracking-wider text-text-secondary">
+                        <th className="pb-3">Analyte</th>
+                        <th className="pb-3">Measured Value</th>
+                        <th className="pb-3">Reference Range</th>
+                        <th className="pb-3">LOINC Standard</th>
+                        <th className="pb-3">Status</th>
+                        <th className="pb-3">Clinical Significance</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/60 font-mono text-xs">
+                      {multimodal_data.biomarkers.map((bm: any, idx: number) => {
+                        const isPanic = bm.criticality_flag || bm.status?.startsWith('critical');
+                        return (
+                          <tr key={idx} className="hover:bg-background/40 transition-colors">
+                            <td className="py-3 font-sans font-semibold text-text-primary">
+                              {bm.name}
+                            </td>
+                            <td className="py-3">
+                              <span className={`font-bold ${isPanic ? 'text-rose-400' : 'text-text-primary'}`}>
+                                {bm.value} {bm.unit}
+                              </span>
+                            </td>
+                            <td className="py-3 text-[11px] text-text-muted">
+                              {bm.reference_range}
+                            </td>
+                            <td className="py-3">
+                              <span className="rounded bg-teal-500/10 px-2 py-0.5 text-[10px] text-teal-300 border border-teal-500/20">
+                                {bm.loinc_code || 'N/A'}
+                              </span>
+                            </td>
+                            <td className="py-3 font-sans">
+                              {isPanic ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-500/20 border border-rose-500/40 text-[10px] font-bold text-rose-300 animate-pulse">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  PANIC CRITICAL
+                                </span>
+                              ) : bm.status === 'normal' ? (
+                                <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-medium text-emerald-400">
+                                  NORMAL
+                                </span>
+                              ) : (
+                                <span className="px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] font-medium text-amber-300 uppercase">
+                                  {bm.status?.replace('_', ' ')}
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3 font-sans text-text-secondary text-[11px]">
+                              {bm.clinical_interpretation || 'Within normal parameters.'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="p-8 rounded-2xl bg-surface border border-dashed border-border/80 text-center space-y-3">
+                <FlaskConical className="h-10 w-10 text-text-muted mx-auto opacity-40" />
+                <h4 className="font-bold text-sm text-text-primary">No Multimodal Lab Telemetry Attached</h4>
+                <p className="text-xs text-text-secondary max-w-md mx-auto">
+                  This clinical session was processed with standard demographic and symptom data. You can attach 12-lead ECGs or laboratory panels during intake.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
         {activeTab === 'meds' && (
           <div className="w-full">
             <DrugInteractionCard
@@ -369,6 +525,119 @@ export default function ReportViewer({
               medicationNotes={clinical_summary}
               fda_data_used={!!(fhir_bundle && fhir_bundle.fda_data_used)}
             />
+          </div>
+        )}
+
+        {activeTab === 'discharge' && (
+          <div className="flex flex-col gap-6 w-full text-left">
+            {/* Patient Header Banner */}
+            <div className="p-6 rounded-2xl bg-gradient-to-r from-teal-950/40 to-surface border border-teal-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-lg">
+              <div>
+                <span className="text-[10px] font-mono font-bold text-teal-400 uppercase tracking-widest block mb-1">
+                  PATIENT & FAMILY CARE PERSPECTIVE
+                </span>
+                <h3 className="font-sans font-bold text-lg text-text-primary flex items-center gap-2">
+                  <HeartHandshake className="h-5 w-5 text-teal-400" />
+                  Your Care Plan & Discharge Instructions
+                </h3>
+                <p className="text-xs text-text-secondary mt-1">
+                  Plain-language guidance prepared for {session.patient_name} and family caregivers.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => triggerPrint('patient')}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition-all shadow-md self-start md:self-auto"
+              >
+                <Printer className="h-4 w-4" />
+                Print Care Guide
+              </button>
+            </div>
+
+            {/* Condition Explained Simply */}
+            <div className="p-6 rounded-2xl bg-surface border border-border shadow-md space-y-3">
+              <h4 className="text-xs font-mono font-bold text-teal-400 uppercase tracking-wider flex items-center gap-2">
+                <Stethoscope className="h-4 w-4" />
+                What You Need to Know About Your Diagnosis
+              </h4>
+              <p className="text-sm text-text-primary leading-relaxed">
+                {patient_discharge_summary?.core_condition_explained || 
+                  `You have been evaluated for ${primary.diagnosis}. Our clinical team has reviewed your symptoms, vital signs, and test results to create a tailored care plan.`}
+              </p>
+            </div>
+
+            {/* Immediate Emergency Red Flags */}
+            <div className="p-6 rounded-2xl bg-rose-950/20 border border-rose-500/40 shadow-lg space-y-4">
+              <div className="flex items-center gap-2 text-rose-400">
+                <ShieldAlert className="h-5 w-5 animate-pulse" />
+                <h4 className="font-bold text-sm uppercase tracking-wide">
+                  When to Seek Immediate Emergency Care (Call 911 / Return to ER)
+                </h4>
+              </div>
+              <p className="text-xs text-rose-200/90 leading-relaxed">
+                If you experience any of the following symptoms, do not wait. Call 911 or proceed immediately to the nearest Emergency Department:
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {(patient_discharge_summary?.warning_signs_immediate_er || [
+                  'Sudden or worsening chest pressure, squeezing, or pain radiating to jaw or left arm',
+                  'Severe shortness of breath or difficulty breathing while resting',
+                  'Sudden weakness, numbness, or facial drooping',
+                  'Fainting, dizziness, or confusion',
+                  'Uncontrolled bleeding or severe sudden abdominal pain'
+                ]).map((warning: string, idx: number) => (
+                  <div key={idx} className="flex items-start gap-2.5 p-3 rounded-xl bg-rose-950/40 border border-rose-500/20 text-xs text-rose-100">
+                    <span className="flex-shrink-0 text-rose-400 font-bold">⚠️</span>
+                    <span>{warning}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Home Care & Follow-up Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+              {/* Home Care Instructions */}
+              <div className="p-6 rounded-2xl bg-surface border border-border shadow-md space-y-4">
+                <h4 className="text-xs font-mono font-bold text-primary uppercase tracking-wider flex items-center gap-2">
+                  <span>🏠 Home Care & Daily Activities</span>
+                </h4>
+                <ul className="space-y-2.5 text-xs text-text-secondary">
+                  {(patient_discharge_summary?.home_care_instructions || [
+                    'Rest quietly and avoid strenuous physical exertion or heavy lifting.',
+                    'Keep a daily log of blood pressure and heart rate readings.',
+                    'Follow a low-sodium, heart-healthy dietary plan as discussed.',
+                    'Stay well hydrated unless fluid restriction has been specified.'
+                  ]).map((inst: string, idx: number) => (
+                    <li key={idx} className="flex items-start gap-2">
+                      <span className="text-teal-400 font-bold">•</span>
+                      <span>{inst}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Follow-up & Medication Instructions */}
+              <div className="p-6 rounded-2xl bg-surface border border-border shadow-md space-y-5">
+                <div>
+                  <h4 className="text-xs font-mono font-bold text-primary uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <span>🗓️ Follow-up Schedule</span>
+                  </h4>
+                  <p className="text-xs text-text-primary leading-relaxed bg-background/60 p-3.5 rounded-xl border border-border/60">
+                    {patient_discharge_summary?.follow_up_timeline ||
+                      'Schedule an appointment with your primary care physician or cardiologist within 48 to 72 hours.'}
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="text-xs font-mono font-bold text-primary uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <span>💊 Medication & Safety Guidance</span>
+                  </h4>
+                  <p className="text-xs text-text-secondary leading-relaxed bg-background/60 p-3.5 rounded-xl border border-border/60">
+                    {patient_discharge_summary?.medication_guidance ||
+                      'Take all prescribed medications exactly as directed. Never stop or change doses without consulting your doctor.'}
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

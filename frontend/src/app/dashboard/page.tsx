@@ -5,6 +5,7 @@ import StatsCard from '@/components/dashboard/StatsCard';
 import RecentSessions from '@/components/dashboard/RecentSessions';
 import { DashboardSkeleton } from '@/components/shared/Skeletons';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
+import LoadingSpinner from '@/components/shared/LoadingSpinner';
 
 // Import newly created analytics hooks & charts
 import useAnalytics from '@/hooks/useAnalytics';
