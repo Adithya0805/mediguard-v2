@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Activity, Bell, LogOut, ChevronDown, User, Shield, Key, X } from 'lucide-react';
@@ -20,6 +21,21 @@ export default function Navbar() {
   const [healthStatus, setHealthStatus] = useState<'healthy' | 'unhealthy' | 'checking'>('checking');
   const [showMenu, setShowMenu] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Close profile modal on Escape key press
+  useEffect(() => {
+    if (!showProfileModal) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowProfileModal(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showProfileModal]);
 
   useEffect(() => {
     loadFromStorage();
@@ -190,8 +206,11 @@ export default function Navbar() {
                   </div>
                   
                   <button
-                    onClick={() => setShowProfileModal(true)}
-                    className="w-full px-4 py-2 hover:bg-background/40 text-text-secondary hover:text-text-primary flex items-center gap-2.5 text-left focus:outline-none"
+                    onClick={() => {
+                      setShowProfileModal(true);
+                      setShowMenu(false);
+                    }}
+                    className="w-full px-4 py-2 hover:bg-background/40 text-text-secondary hover:text-text-primary flex items-center gap-2.5 text-left focus:outline-none cursor-pointer"
                   >
                     <User className="h-4 w-4 text-[#0d9488]" />
                     <span>My Profile</span>
@@ -222,7 +241,7 @@ export default function Navbar() {
                       await logout();
                       router.push('/login');
                     }}
-                    className="w-full px-4 py-2 hover:bg-danger/10 text-text-secondary hover:text-danger flex items-center gap-2.5 text-left focus:outline-none font-semibold"
+                    className="w-full px-4 py-2 hover:bg-danger/10 text-text-secondary hover:text-danger flex items-center gap-2.5 text-left focus:outline-none font-semibold cursor-pointer"
                   >
                     <LogOut className="h-4 w-4" />
                     <span>Sign Out</span>
@@ -236,64 +255,113 @@ export default function Navbar() {
 
       </div>
 
-      {/* Staff Profile Modal */}
-      {showProfileModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-background/60 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-2xl bg-[#111827] border border-border shadow-2xl overflow-hidden relative">
-            <div className="flex items-center justify-between p-6 border-b border-border/50">
-              <h3 className="font-bold text-base text-left">Clinical Staff Profile</h3>
+      {/* Staff Profile Modal rendered into document.body to avoid navbar overflow clipping */}
+      {showProfileModal && mounted && createPortal(
+        <div 
+          onClick={() => setShowProfileModal(false)}
+          className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-2xl bg-[#111827] border border-border/90 shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-200"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border/60 bg-surface/40">
+              <div className="flex items-center gap-2.5">
+                <div className="h-8 w-8 rounded-full bg-teal-500/15 border border-teal-500/30 flex items-center justify-center text-teal-400 font-bold text-xs">
+                  {clinician?.name ? clinician.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'MD'}
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-text-primary text-left leading-none">Clinical Staff Profile</h3>
+                  <span className="text-[10px] text-teal-400 font-mono">Verified Credential</span>
+                </div>
+              </div>
               <button 
                 onClick={() => setShowProfileModal(false)}
-                className="p-1 rounded-lg text-text-muted hover:bg-surface-raised transition-colors focus:outline-none"
+                className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-raised transition-colors focus:outline-none cursor-pointer"
+                aria-label="Close Profile Modal"
               >
-                <X className="h-4.5 w-4.5" />
+                <X className="h-5 w-5" />
               </button>
             </div>
             
+            {/* Body */}
             <div className="p-6 flex flex-col gap-4 text-left text-sm">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[10px] text-text-muted font-mono uppercase">Full Name</span>
-                <span className="font-bold text-text-primary text-base">{clinician?.name}</span>
+              <div className="flex flex-col gap-1 p-3 rounded-xl bg-background/60 border border-border/50">
+                <span className="text-[10px] text-text-muted font-mono uppercase tracking-wider">Clinician Name</span>
+                <span className="font-bold text-text-primary text-base flex items-center gap-2">
+                  {clinician?.name}
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-teal-500/15 text-[#0d9488] border border-teal-500/20">
+                    MD / CMO
+                  </span>
+                </span>
+                <span className="font-mono text-xs text-text-secondary mt-0.5">{clinician?.email}</span>
               </div>
 
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[10px] text-text-muted font-mono uppercase">Clinical Email</span>
-                <span className="font-mono text-text-secondary">{clinician?.email}</span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-0.5">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-xl bg-background/40 border border-border/40 flex flex-col gap-1">
                   <span className="text-[10px] text-text-muted font-mono uppercase">Role Privilege</span>
-                  <span className="font-semibold text-[#0d9488] capitalize">{clinician?.role}</span>
+                  <span className="font-semibold text-teal-400 capitalize text-sm">{clinician?.role}</span>
                 </div>
-                <div className="flex flex-col gap-0.5">
+                <div className="p-3 rounded-xl bg-background/40 border border-border/40 flex flex-col gap-1">
                   <span className="text-[10px] text-text-muted font-mono uppercase">Specialty</span>
-                  <span className="font-semibold text-text-secondary">{clinician?.specialty || 'General CDSS'}</span>
+                  <span className="font-semibold text-text-secondary text-sm">{clinician?.specialty || 'Emergency Cardiology'}</span>
                 </div>
               </div>
 
-              <div className="flex flex-col gap-0.5">
+              <div className="p-3 rounded-xl bg-background/40 border border-border/40 flex flex-col gap-1">
                 <span className="text-[10px] text-text-muted font-mono uppercase">Assigned Institution</span>
-                <span className="font-semibold text-text-primary">{clinician?.institution_name} ({clinician?.institution_code})</span>
+                <span className="font-semibold text-text-primary text-sm leading-tight">
+                  {clinician?.institution_name}
+                </span>
+                <span className="text-[11px] font-mono text-teal-400/90">{clinician?.institution_code}</span>
               </div>
 
-              <div className="w-full h-px bg-border/40 my-1" />
-
-              <div className="grid grid-cols-2 gap-4 text-xs font-mono text-text-muted">
+              <div className="grid grid-cols-2 gap-3 text-xs font-mono text-text-muted p-3 rounded-xl bg-background/40 border border-border/40">
                 <div className="flex flex-col">
-                  <span>Login Sessions:</span>
-                  <span className="font-bold text-text-secondary mt-0.5">{clinician?.login_count || 0} logins</span>
+                  <span className="text-[10px] uppercase">Login Sessions:</span>
+                  <span className="font-bold text-text-primary mt-0.5">{clinician?.login_count || 0} logins</span>
                 </div>
                 <div className="flex flex-col">
-                  <span>Last Login:</span>
-                  <span className="font-bold text-text-secondary mt-0.5">
+                  <span className="text-[10px] uppercase">Last Access:</span>
+                  <span className="font-bold text-text-primary mt-0.5">
                     {clinician?.last_login_at ? new Date(clinician.last_login_at).toLocaleDateString() : 'Today'}
                   </span>
                 </div>
               </div>
+
+              <div className="flex items-center justify-between text-[11px] text-text-muted font-mono pt-1">
+                <span className="flex items-center gap-1.5 text-teal-400/90">
+                  <Shield className="h-3.5 w-3.5" />
+                  HIPAA Audited Session
+                </span>
+                <span className="text-text-muted">ID: {clinician?.id?.slice(0, 8)}...</span>
+              </div>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="px-6 py-3.5 border-t border-border/50 bg-surface/30 flex items-center justify-end gap-2.5">
+              <button
+                onClick={() => setShowProfileModal(false)}
+                className="px-4 py-2 rounded-xl border border-border bg-surface hover:bg-surface-raised text-text-primary text-xs font-semibold transition-all cursor-pointer"
+              >
+                Close Profile
+              </button>
+              <button
+                onClick={async () => {
+                  setShowProfileModal(false);
+                  await logout();
+                  router.push('/login');
+                }}
+                className="px-4 py-2 rounded-xl bg-danger/15 border border-danger/30 text-danger hover:bg-danger/25 text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                Sign Out
+              </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </nav>
   );
