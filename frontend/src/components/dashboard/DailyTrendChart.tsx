@@ -56,28 +56,30 @@ export default function DailyTrendChart({ data }: DailyTrendChartProps) {
                   <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.0}/>
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(var(--border-rgb), 0.3)" />
+              <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" vertical={false} />
               <XAxis 
                 dataKey="date" 
-                stroke="var(--text-muted)" 
+                tick={{ fill: '#94a3b8', fontSize: 10 }}
+                minTickGap={30}
                 tickLine={false}
                 axisLine={false}
-                dy={10}
+                dy={8}
               />
               <YAxis 
                 yAxisId="left"
-                stroke="var(--text-muted)" 
+                tick={{ fill: '#94a3b8', fontSize: 10 }}
                 tickLine={false}
                 axisLine={false}
-                dx={-5}
+                dx={-4}
+                allowDecimals={false}
               />
               <YAxis 
                 yAxisId="right"
                 orientation="right"
-                stroke="#6366F1" 
+                tick={{ fill: '#818cf8', fontSize: 10 }}
                 tickLine={false}
                 axisLine={false}
-                dx={5}
+                dx={4}
                 unit="s"
               />
               <Tooltip 
@@ -115,6 +117,7 @@ export default function DailyTrendChart({ data }: DailyTrendChartProps) {
                 stroke="#EF4444" 
                 fillOpacity={1} 
                 fill="url(#colorCrit)" 
+                isAnimationActive={false}
               />
               <Area 
                 yAxisId="left"
@@ -125,6 +128,7 @@ export default function DailyTrendChart({ data }: DailyTrendChartProps) {
                 stroke="#F59E0B" 
                 fillOpacity={1} 
                 fill="url(#colorHigh)" 
+                isAnimationActive={false}
               />
               <Area 
                 yAxisId="left"
@@ -135,6 +139,7 @@ export default function DailyTrendChart({ data }: DailyTrendChartProps) {
                 stroke="#10B981" 
                 fillOpacity={1} 
                 fill="url(#colorMed)" 
+                isAnimationActive={false}
               />
               <Area 
                 yAxisId="left"
@@ -145,6 +150,7 @@ export default function DailyTrendChart({ data }: DailyTrendChartProps) {
                 stroke="#3B82F6" 
                 fillOpacity={1} 
                 fill="url(#colorLow)" 
+                isAnimationActive={false}
               />
 
               {/* Line for Average Pipeline Duration (right Y-axis) */}
@@ -155,8 +161,9 @@ export default function DailyTrendChart({ data }: DailyTrendChartProps) {
                 dataKey="avg_pipeline_seconds"
                 stroke="#6366F1"
                 strokeWidth={2}
-                dot={{ r: 3, fill: '#6366F1', strokeWidth: 1, stroke: '#FFF' }}
-                activeDot={{ r: 5 }}
+                dot={false}
+                activeDot={{ r: 5, fill: '#6366F1', stroke: '#FFF', strokeWidth: 1 }}
+                isAnimationActive={false}
               />
             </ComposedChart>
           </ResponsiveContainer>

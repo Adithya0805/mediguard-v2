@@ -64,9 +64,9 @@ export default function PageWrapper({ children }: PageWrapperProps) {
           paddingLeft: sidebarOpen ? '256px' : '72px' 
         }}
         transition={{ duration: 0.3, ease: [0.25, 0.8, 0.25, 1] }}
-        className="min-h-screen pt-16 flex flex-col w-full"
+        className="min-h-screen pt-20 flex flex-col w-full"
       >
-        <main className="flex-1 w-full mx-auto max-w-7xl px-4 py-8 md:px-8">
+        <main className="flex-1 w-full mx-auto max-w-7xl px-4 py-6 md:px-8">
           <AnimatePresence mode="wait">
             <motion.div
               key={pathname}

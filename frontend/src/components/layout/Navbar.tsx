@@ -104,7 +104,7 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 h-16 border-b border-border bg-background/70 backdrop-blur-md select-none">
+    <nav className="fixed top-0 left-0 right-0 z-50 h-16 border-b border-border/80 bg-[#0a0f1e]/95 backdrop-blur-lg shadow-sm select-none">
       <div className="mx-auto flex h-full max-w-7xl items-center justify-between px-6">
         
         {/* Logo and Institution Subtitle Section */}

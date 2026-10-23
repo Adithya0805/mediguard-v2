@@ -29,7 +29,7 @@ export default function AgentPerformanceChart({ data }: AgentPerformanceChartPro
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-center">
         {/* Recharts Bar Display */}
-        <div className="lg:col-span-3 h-[250px] w-full font-mono text-[10px]">
+        <div className="lg:col-span-3 h-[280px] w-full font-mono text-[10px]">
           {data.length === 0 ? (
             <div className="h-full w-full flex items-center justify-center text-text-muted">
               No agent performance data
@@ -41,20 +41,31 @@ export default function AgentPerformanceChart({ data }: AgentPerformanceChartPro
                 margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
                 barGap={4}
               >
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(var(--border-rgb), 0.3)" />
+                <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" vertical={false} />
                 <XAxis 
                   dataKey="display_name" 
-                  stroke="var(--text-muted)" 
+                  tick={{ fill: '#94a3b8', fontSize: 10 }}
                   tickLine={false}
                   axisLine={false}
-                  dy={10}
+                  dy={8}
+                  tickFormatter={(val: string) => {
+                    const map: Record<string, string> = {
+                      'Intake Agent': 'Intake',
+                      'Symptom Screener': 'Symptom',
+                      'Differential Diagnosis': 'Diagnosis',
+                      'OpenFDA Drug Screener': 'OpenFDA',
+                      'Multimodal Vision Agent': 'Vision AI',
+                      'FHIR & PDF Synthesizer': 'Synthesizer'
+                    };
+                    return map[val] || (val.length > 10 ? `${val.substring(0, 10)}...` : val);
+                  }}
                 />
                 <YAxis 
-                  stroke="var(--text-muted)" 
+                  tick={{ fill: '#94a3b8', fontSize: 10 }}
                   tickLine={false}
                   axisLine={false}
                   unit="s"
-                  dx={-5}
+                  dx={-4}
                 />
                 <Tooltip 
                   contentStyle={{
@@ -84,12 +95,14 @@ export default function AgentPerformanceChart({ data }: AgentPerformanceChartPro
                   dataKey="avg_seconds" 
                   fill="#10B981" 
                   radius={[4, 4, 0, 0]}
+                  isAnimationActive={false}
                 />
                 <Bar 
                   name="Max Duration" 
                   dataKey="max_seconds" 
                   fill="#F59E0B" 
                   radius={[4, 4, 0, 0]}
+                  isAnimationActive={false}
                 />
               </BarChart>
             </ResponsiveContainer>
@@ -99,7 +112,7 @@ export default function AgentPerformanceChart({ data }: AgentPerformanceChartPro
         {/* Detailed Health Status Table */}
         <div className="lg:col-span-2 flex flex-col gap-3">
           <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Agent Health Indicators</span>
-          <div className="flex flex-col gap-2.5 max-h-[220px] overflow-y-auto pr-1">
+          <div className="flex flex-col gap-2.5 max-h-[280px] overflow-y-auto pr-1">
             {data.map((agent) => {
               const isHealthy = agent.status === 'healthy';
               const isWarning = agent.status === 'warning';
@@ -117,21 +130,21 @@ export default function AgentPerformanceChart({ data }: AgentPerformanceChartPro
               return (
                 <div 
                   key={agent.agent_name}
-                  className="flex items-center justify-between p-2.5 rounded-xl border border-border bg-surface-muted hover:border-border/80 transition-colors"
+                  className="flex items-center justify-between gap-3 p-2.5 rounded-xl border border-border bg-surface-muted/60 hover:border-border transition-colors"
                 >
-                  <div className="flex items-center gap-2">
-                    <div className={`p-1.5 rounded-lg border ${statusBg}`}>
-                      <StatusIcon className="h-4 w-4 shrink-0" />
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <div className={`p-1.5 rounded-lg border shrink-0 ${statusBg}`}>
+                      <StatusIcon className="h-4 w-4" />
                     </div>
-                    <div className="flex flex-col text-left">
-                      <span className="text-xs font-semibold text-text-primary leading-tight">{agent.display_name}</span>
-                      <span className="text-[10px] text-text-muted font-mono">{agent.avg_tokens.toLocaleString()} tokens/avg</span>
+                    <div className="flex flex-col text-left min-w-0 flex-1">
+                      <span className="text-xs font-semibold text-text-primary leading-tight truncate" title={agent.display_name}>{agent.display_name}</span>
+                      <span className="text-[10px] text-text-muted font-mono truncate">{agent.avg_tokens.toLocaleString()} tokens/avg</span>
                     </div>
                   </div>
 
-                  <div className="flex flex-col items-end text-right">
-                    <span className="text-xs font-mono font-bold text-text-primary">{agent.success_rate}% success</span>
-                    <span className="text-[10px] text-text-muted font-mono">avg {agent.avg_seconds}s</span>
+                  <div className="flex flex-col items-end text-right shrink-0">
+                    <span className="text-xs font-mono font-bold text-text-primary whitespace-nowrap">{agent.success_rate}% success</span>
+                    <span className="text-[10px] text-text-muted font-mono whitespace-nowrap">avg {agent.avg_seconds}s</span>
                   </div>
                 </div>
               );

@@ -33,9 +33,9 @@ export default function DrugInteractionChart({ data }: DrugInteractionChartProps
         <p className="text-xs text-text-muted">Pharmaceutical safety profile aggregates and critical combination alerts</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-center">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
         {/* Pie / Donut Breakdown */}
-        <div className="lg:col-span-2 h-[250px] w-full flex flex-col items-center justify-center relative font-mono text-[10px]">
+        <div className="lg:col-span-4 h-[250px] w-full flex flex-col items-center justify-center relative font-mono text-[10px]">
           {severityData.length === 0 ? (
             <div className="h-full w-full flex flex-col items-center justify-center text-text-muted gap-2">
               <Sparkles className="h-6 w-6 text-success opacity-80" />
@@ -81,7 +81,7 @@ export default function DrugInteractionChart({ data }: DrugInteractionChartProps
         </div>
 
         {/* Legend + Critical warning list */}
-        <div className="lg:col-span-3 flex flex-col gap-4">
+        <div className="lg:col-span-8 flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Dangerous Drug Combinations</span>
             <div className="flex flex-col gap-2.5 max-h-[190px] overflow-y-auto pr-1">
@@ -106,23 +106,28 @@ export default function DrugInteractionChart({ data }: DrugInteractionChartProps
                   return (
                     <div 
                       key={`${pair.drug_a}-${pair.drug_b}-${idx}`}
-                      className="flex items-center justify-between p-2.5 rounded-xl border border-border bg-surface-muted hover:border-border/80 transition-colors"
+                      className="flex flex-col gap-1.5 p-2.5 rounded-xl border border-border bg-surface-muted/60 hover:border-border transition-colors text-left"
                     >
-                      <div className="flex items-start gap-2.5 max-w-[70%]">
-                        <div className={`p-1.5 rounded-lg border ${isContraindicated ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-surface border-border text-text-muted'}`}>
-                          <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
-                        </div>
-                        <div className="flex flex-col text-left">
-                          <span className="text-xs font-semibold text-text-primary capitalize leading-tight">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <div className={`p-1 rounded-md border shrink-0 ${isContraindicated ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-surface border-border text-text-muted'}`}>
+                            <ShieldAlert className="h-3 w-3" />
+                          </div>
+                          <span className="text-xs font-semibold text-text-primary capitalize leading-tight" title={`${pair.drug_a} + ${pair.drug_b}`}>
                             {pair.drug_a} + {pair.drug_b}
                           </span>
-                          <span className="text-[10px] text-text-muted font-mono">{pair.count} records flagged</span>
                         </div>
+                        <span className={`shrink-0 text-[9px] font-mono font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider whitespace-nowrap ${badgeColor}`}>
+                          {pair.severity}
+                        </span>
                       </div>
 
-                      <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider ${badgeColor}`}>
-                        {pair.severity}
-                      </span>
+                      <div className="flex items-center justify-between pt-1 border-t border-border/40 text-[10px] text-text-muted">
+                        <span className="font-mono text-text-secondary">{pair.count} records flagged</span>
+                        <span className="text-text-muted">
+                          {isContraindicated ? 'Prohibited co-administration' : isSevere ? 'High clinical risk' : 'Clinical monitoring required'}
+                        </span>
+                      </div>
                     </div>
                   );
                 })

@@ -100,23 +100,26 @@ export function useAnalytics(days = 30, pollIntervalMs = 60000) {
       const response = await getAnalyticsDashboard(days);
       // Ensure we only store the result if the request matches the current selected days
       if (activeDaysRef.current === days && response) {
-        // If backend returned empty database, keep rich baseline overview breakdown
+        const hasLiveSessions = (response.overview?.total_sessions || 0) > 0;
         const merged: AnalyticsDashboardResponse = {
           ...response,
-          overview: {
-            ...CLINICAL_FALLBACK_ANALYTICS.overview,
-            ...(response.overview || {}),
-            urgency_breakdown: {
-              ...CLINICAL_FALLBACK_ANALYTICS.overview.urgency_breakdown,
-              ...(response.overview?.urgency_breakdown || {})
-            }
-          },
-          daily_trend: response.daily_trend?.length ? response.daily_trend : CLINICAL_FALLBACK_ANALYTICS.daily_trend,
-          agent_performance: response.agent_performance?.length ? response.agent_performance : CLINICAL_FALLBACK_ANALYTICS.agent_performance,
-          top_diagnoses: response.top_diagnoses?.length ? response.top_diagnoses : CLINICAL_FALLBACK_ANALYTICS.top_diagnoses,
-          drug_interactions: response.drug_interactions?.most_common_pairs?.length ? response.drug_interactions : CLINICAL_FALLBACK_ANALYTICS.drug_interactions,
-          patient_demographics: response.patient_demographics?.avg_age ? response.patient_demographics : CLINICAL_FALLBACK_ANALYTICS.patient_demographics,
-          anomalies: response.anomalies || []
+          overview: hasLiveSessions ? response.overview : CLINICAL_FALLBACK_ANALYTICS.overview,
+          daily_trend: (hasLiveSessions && response.daily_trend?.some(d => d.total > 0)) 
+            ? response.daily_trend 
+            : CLINICAL_FALLBACK_ANALYTICS.daily_trend,
+          agent_performance: (hasLiveSessions && response.agent_performance?.some(a => (a.avg_seconds || 0) > 0))
+            ? response.agent_performance
+            : CLINICAL_FALLBACK_ANALYTICS.agent_performance,
+          top_diagnoses: (hasLiveSessions && response.top_diagnoses?.length)
+            ? response.top_diagnoses
+            : CLINICAL_FALLBACK_ANALYTICS.top_diagnoses,
+          drug_interactions: (hasLiveSessions && response.drug_interactions?.most_common_pairs?.length)
+            ? response.drug_interactions
+            : CLINICAL_FALLBACK_ANALYTICS.drug_interactions,
+          patient_demographics: (hasLiveSessions && (response.patient_demographics?.avg_age || 0) > 0)
+            ? response.patient_demographics
+            : CLINICAL_FALLBACK_ANALYTICS.patient_demographics,
+          anomalies: response.anomalies?.length ? response.anomalies : CLINICAL_FALLBACK_ANALYTICS.anomalies
         };
         setData(merged);
       }
