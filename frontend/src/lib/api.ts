@@ -542,5 +542,14 @@ export async function attachPresetToSession(sessionId: string, presetId: string)
   return res.data;
 }
 
+export async function changeKeyPhrase(payload: {
+  current_key_phrase: string;
+  new_key_phrase: string;
+  confirm_key_phrase: string;
+}): Promise<{ message: string; success: boolean }> {
+  const res = await api.post('/api/v1/auth/change-key-phrase', payload);
+  return res.data;
+}
+
 export default api;
 
