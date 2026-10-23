@@ -59,15 +59,15 @@ export default function Dashboard() {
     fetchRecentSessions();
   };
 
-  if (isLoading || !data) {
+  if (isLoading && !data) {
     return <DashboardSkeleton />;
   }
 
-  // Calculate critical case metric from overview breakdown
-  const criticalCount = (data.overview.urgency_breakdown.critical || 0) + (data.overview.urgency_breakdown.high || 0);
+  // Calculate critical case metric from overview breakdown safely
+  const criticalCount = (data?.overview?.urgency_breakdown?.critical || 0) + (data?.overview?.urgency_breakdown?.high || 0);
   
-  // Format WoW trend
-  const wowChange = data.overview.week_over_week_change_percent;
+  // Format WoW trend safely
+  const wowChange = data?.overview?.week_over_week_change_percent ?? 0;
   const isWowPositive = wowChange >= 0;
 
   return (

@@ -47,9 +47,7 @@ function LoginForm() {
       setSuccessMessage('Access granted. Welcome, Dr. Adithya (CMO)');
       toast.success('Access granted. Welcome, Dr. Adithya (CMO)');
       const redirectUrl = searchParams.get('redirect') || '/dashboard';
-      setTimeout(() => {
-        router.push(redirectUrl);
-      }, 600);
+      router.push(redirectUrl);
     }
   };
 

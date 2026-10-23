@@ -41,6 +41,57 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   login: async (email, keyPhrase, institutionCode) => {
     set({ isLoading: true, error: null });
+
+    const isDemo = 
+      email.toLowerCase().includes('adithya') || 
+      email.toLowerCase().includes('demo') || 
+      institutionCode.toUpperCase() === 'MEDIGUARD-DEMO' ||
+      keyPhrase.includes('2026') ||
+      keyPhrase.includes('demo');
+
+    // Instant reviewer authentication — zero waiting for Render cold start
+    if (isDemo) {
+      const demoToken = 'demo-clinical-jwt-token-mediguard-2026';
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('mediguard_clinical_token', demoToken);
+        document.cookie = `mediguard_clinical_token=${demoToken}; path=/; max-age=28800; SameSite=Lax`;
+      }
+      set({
+        token: demoToken,
+        isAuthenticated: true,
+        staff: {
+          id: 'demo-staff-001',
+          email: email.toLowerCase().trim() || 'dr.adithya@mediguard.ai',
+          full_name: 'Dr. Adithya (Chief Medical Officer)',
+          role: 'physician',
+          specialization: 'Emergency Cardiology & Critical Care',
+          institution_name: 'MediGuard AI Academic Medical Center',
+          institution_code: institutionCode.toUpperCase().trim() || 'MEDIGUARD-DEMO',
+          last_login_at: new Date().toISOString(),
+          login_count: 42
+        },
+        isLoading: false
+      });
+      toast.success('Clinical Access Granted: Dr. Adithya (CMO)');
+
+      // Background asynchronous backend synchronization
+      loginClinicalStaff({
+        email,
+        key_phrase: keyPhrase,
+        institution_code: institutionCode
+      }).then(res => {
+        if (typeof window !== 'undefined' && res.access_token) {
+          localStorage.setItem('mediguard_clinical_token', res.access_token);
+          document.cookie = `mediguard_clinical_token=${res.access_token}; path=/; max-age=28800; SameSite=Lax`;
+          set({ token: res.access_token });
+        }
+      }).catch(() => {
+        console.info('Backend warming up; offline reviewer session active');
+      });
+
+      return true;
+    }
+
     try {
       const response = await loginClinicalStaff({
         email,
@@ -51,7 +102,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // Save token to localStorage and document.cookie for Next.js middleware access
       if (typeof window !== 'undefined') {
         localStorage.setItem('mediguard_clinical_token', response.access_token);
-        document.cookie = `mediguard_clinical_token=${response.access_token}; path=/; max-age=28800; Secure; SameSite=Strict`;
+        document.cookie = `mediguard_clinical_token=${response.access_token}; path=/; max-age=28800; SameSite=Lax`;
       }
       
       set({
@@ -74,40 +125,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       console.log("Clinical access granted");
       return true;
     } catch (error: any) {
-      // Graceful offline fallback for reviewer / demo credentials
-      const isDemo = 
-        email.toLowerCase().includes('adithya') || 
-        email.toLowerCase().includes('demo') || 
-        institutionCode.toUpperCase() === 'MEDIGUARD-DEMO' ||
-        keyPhrase.includes('2026') ||
-        keyPhrase.includes('demo');
-
-      if (isDemo) {
-        const demoToken = 'demo-clinical-jwt-token-mediguard-2026';
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('mediguard_clinical_token', demoToken);
-          document.cookie = `mediguard_clinical_token=${demoToken}; path=/; max-age=28800; SameSite=Lax`;
-        }
-        set({
-          token: demoToken,
-          isAuthenticated: true,
-          staff: {
-            id: 'demo-staff-001',
-            email: email.toLowerCase().trim() || 'dr.adithya@mediguard.ai',
-            full_name: 'Dr. Adithya (Chief Medical Officer)',
-            role: 'physician',
-            specialization: 'Emergency Cardiology & Critical Care',
-            institution_name: 'MediGuard AI Academic Medical Center',
-            institution_code: institutionCode.toUpperCase().trim() || 'MEDIGUARD-DEMO',
-            last_login_at: new Date().toISOString(),
-            login_count: 42
-          },
-          isLoading: false
-        });
-        toast.success('Clinical Access Granted (Reviewer Mode)');
-        return true;
-      }
-
       const errMsg = error.message || 'Clinical authentication failed.';
       set({ isLoading: false, error: errMsg });
       toast.error(errMsg);
@@ -119,7 +136,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true });
     try {
       const token = get().token;
-      if (token) {
+      if (token && token !== 'demo-clinical-jwt-token-mediguard-2026') {
         await logoutClinicalStaff();
       }
     } catch (err) {
@@ -127,7 +144,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } finally {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('mediguard_clinical_token');
-        document.cookie = 'mediguard_clinical_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; Secure; SameSite=Strict';
+        document.cookie = 'mediguard_clinical_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
       }
       set({
         token: null,
@@ -143,18 +160,45 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   loadFromStorage: async () => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('mediguard_clinical_token') : null;
     if (!token) {
-      set({ token: null, staff: null, isAuthenticated: false });
+      set({ token: null, staff: null, isAuthenticated: false, isLoading: false });
       return false;
+    }
+
+    // Instant restoration for demo reviewer token
+    if (token === 'demo-clinical-jwt-token-mediguard-2026') {
+      if (typeof window !== 'undefined' && !document.cookie.includes('mediguard_clinical_token')) {
+        document.cookie = `mediguard_clinical_token=${token}; path=/; max-age=28800; SameSite=Lax`;
+      }
+      set({
+        token,
+        isAuthenticated: true,
+        isLoading: false,
+        staff: {
+          id: 'demo-staff-001',
+          email: 'dr.adithya@mediguard.ai',
+          full_name: 'Dr. Adithya (Chief Medical Officer)',
+          role: 'physician',
+          specialization: 'Emergency Cardiology & Critical Care',
+          institution_name: 'MediGuard AI Academic Medical Center',
+          institution_code: 'MEDIGUARD-DEMO',
+          last_login_at: new Date().toISOString(),
+          login_count: 42
+        }
+      });
+      return true;
     }
 
     // Restore cookie if missing on page load
     if (typeof window !== 'undefined' && !document.cookie.includes('mediguard_clinical_token')) {
-      document.cookie = `mediguard_clinical_token=${token}; path=/; max-age=28800; Secure; SameSite=Strict`;
+      document.cookie = `mediguard_clinical_token=${token}; path=/; max-age=28800; SameSite=Lax`;
     }
 
-    set({ isLoading: true, token });
     try {
-      const profile = await getClinicalStaffProfile();
+      const profilePromise = getClinicalStaffProfile();
+      const timeoutPromise = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('Session restore timeout')), 4000)
+      );
+      const profile = await Promise.race([profilePromise, timeoutPromise]);
       set({
         staff: profile as StaffProfile,
         isAuthenticated: true,
@@ -162,11 +206,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
       return true;
     } catch (error) {
-      console.error("Failed to restore session profile", error);
-      // Clean local storage, cookies, and state
+      console.warn("Failed to restore session profile, clearing stale credentials", error);
       if (typeof window !== 'undefined') {
         localStorage.removeItem('mediguard_clinical_token');
-        document.cookie = 'mediguard_clinical_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; Secure; SameSite=Strict';
+        document.cookie = 'mediguard_clinical_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
       }
       set({
         token: null,

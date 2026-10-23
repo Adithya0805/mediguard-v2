@@ -38,9 +38,10 @@ if (isProduction && !isServer) {
   apiBaseURL = rawApiUrl;
 }
 
-// Establish Axios instance with environment variables and defaults
+// Establish Axios instance with environment variables, 12s timeout, and defaults
 const api = axios.create({
   baseURL: apiBaseURL,
+  timeout: 12000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -93,8 +94,8 @@ api.interceptors.response.use(
     // Parse error structure into structured ApiError interface
     const apiError: ApiError = {
       error: true,
-      error_code: (responseData?.error_code as string) || 'NETWORK_ERROR',
-      message: (responseData?.message as string) || error.message || 'An unexpected connection error occurred.',
+      error_code: (responseData?.error_code as string) || (error.code === 'ECONNABORTED' ? 'TIMEOUT_ERROR' : 'NETWORK_ERROR'),
+      message: (responseData?.message as string) || (error.code === 'ECONNABORTED' ? 'Connection timed out. Clinical engine is waking up.' : error.message) || 'An unexpected connection error occurred.',
       details: (responseData?.details as Record<string, unknown>) || {},
       timestamp: (responseData?.timestamp as string) || new Date().toISOString()
     };
@@ -103,10 +104,15 @@ api.interceptors.response.use(
       console.error('[API Error]', apiError);
     }
 
-    // 401 Unauthorized -> Redirect to /login securely
+    // 401 Unauthorized -> Redirect to /login ONLY IF not already on /login and not an auth endpoint
     if (status === 401) {
-      if (typeof window !== 'undefined') {
-        toast.error('Unauthorized access. Redirecting to login...');
+      const isAuthEndpoint = error.config?.url?.includes('/auth/');
+      const isAlreadyOnLogin = typeof window !== 'undefined' && window.location.pathname.startsWith('/login');
+      
+      if (typeof window !== 'undefined' && !isAuthEndpoint && !isAlreadyOnLogin) {
+        localStorage.removeItem('mediguard_clinical_token');
+        document.cookie = 'mediguard_clinical_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; Secure; SameSite=Strict';
+        toast.error('Session expired. Redirecting to login...');
         window.location.href = '/login';
       }
     } 
