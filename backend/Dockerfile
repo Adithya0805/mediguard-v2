@@ -34,6 +34,7 @@ RUN groupadd -g 10001 appgroup && \
 COPY --from=builder /opt/venv /opt/venv
 
 COPY app /app/app
+COPY evals /app/evals
 
 RUN chown -R appuser:appgroup /app
 

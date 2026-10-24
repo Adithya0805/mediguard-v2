@@ -4,7 +4,11 @@ import uuid
 import asyncio
 from app.dependencies import get_current_staff, get_db
 from app.schemas.auth import TokenData
-from evals.evaluators.agent_evaluator import ClinicalAgentEvaluator
+
+try:
+    from evals.evaluators.agent_evaluator import ClinicalAgentEvaluator
+except ImportError:
+    ClinicalAgentEvaluator = None
 
 router = APIRouter()
 
@@ -33,7 +37,7 @@ async def get_safety_reports(
 
 @router.post("/run-eval")
 async def run_safety_evaluation(
-    mode: str = Query(default="mock", regex="^(mock|live)$"),
+    mode: str = Query(default="mock", pattern="^(mock|live)$"),
     current_staff: TokenData = Depends(get_current_staff),
     db = Depends(get_db)
 ):
@@ -42,6 +46,12 @@ async def run_safety_evaluation(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied: Admin role required to run safety evaluations."
+        )
+
+    if ClinicalAgentEvaluator is None:
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="Safety evaluation module is not available in this environment."
         )
 
     try:
@@ -85,7 +95,7 @@ async def run_safety_evaluation(
 @router.post("/ingest-rag")
 async def trigger_rag_ingestion(
     background_tasks: BackgroundTasks,
-    topic: str = Query(default="quick", regex="^(quick|priority|full)$"),
+    topic: str = Query(default="quick", pattern="^(quick|priority|full)$"),
     current_staff: TokenData = Depends(get_current_staff),
     db = Depends(get_db)
 ):
