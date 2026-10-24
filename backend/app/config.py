@@ -39,6 +39,7 @@ class Settings(BaseSettings):
                     "https://mediguard-v2-chandrus-projects.vercel.app",
                     # Allow the Render domain itself for inter-service calls
                     "https://mediguard-v2.onrender.com",
+                    "https://mediguard-v2-1.onrender.com",
                 ]
             else:
                 self.ALLOWED_ORIGINS = ["http://localhost:3000", "http://localhost:3001"]
