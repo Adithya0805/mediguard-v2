@@ -17,16 +17,26 @@ import VoiceRecorder from './VoiceRecorder';
 import VitalsInput from './VitalsInput';
 import MultimodalUploader from './MultimodalUploader';
 import FHIRImportModal from './FHIRImportModal';
+import ClinicalScenarioPresets, { ClinicalScenario } from './ClinicalScenarioPresets';
 import { MultimodalAttachment } from '@/types';
-import { CheckCircle2, Mic, PenLine, AlertTriangle } from 'lucide-react';
 import { 
+  CheckCircle2, 
+  Mic, 
+  PenLine, 
+  AlertTriangle,
   User, 
   HeartPulse, 
   Stethoscope, 
   Pill, 
   ChevronRight, 
   ChevronLeft, 
-  CheckCircle 
+  CheckCircle,
+  ShieldCheck,
+  FlaskConical,
+  Search,
+  FileText,
+  Activity,
+  Zap
 } from 'lucide-react';
 
 type IntakeMode = 'manual' | 'voice' | 'fhir';
@@ -183,6 +193,37 @@ export default function PatientIntakeForm() {
     }
   };
 
+  const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(null);
+
+  const handleSelectPreset = async (scenario: ClinicalScenario, autoLaunch: boolean) => {
+    setSelectedScenarioId(scenario.id);
+
+    setValue('patient_name', scenario.data.patient_name, { shouldValidate: true });
+    setValue('age', scenario.data.age, { shouldValidate: true });
+    setValue('gender', scenario.data.gender, { shouldValidate: true });
+    setValue('chief_complaint', scenario.data.chief_complaint, { shouldValidate: true });
+    setValue('symptoms', scenario.data.symptoms, { shouldValidate: true });
+    setValue('medical_history', scenario.data.medical_history, { shouldValidate: true });
+    setValue('allergies', scenario.data.allergies, { shouldValidate: true });
+    setValue('current_medications', scenario.data.current_medications, { shouldValidate: true });
+    setValue('vitals', scenario.data.vitals, { shouldValidate: true });
+    setValue('attachments', scenario.data.attachments || [], { shouldValidate: true });
+
+    if (autoLaunch) {
+      toast.success(`⚡ 1-Click Launching: ${scenario.title}`);
+      await onSubmit(scenario.data);
+    } else {
+      toast.success(`Loaded Preset: ${scenario.title}. Form populated across all steps!`);
+      setStep(1);
+      setTimeout(() => {
+        const progressEl = document.getElementById('intake-step-progress');
+        if (progressEl) {
+          progressEl.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+    }
+  };
+
   const stepItems = [
     { num: 1, label: 'Demographics', icon: User },
     { num: 2, label: 'Symptoms', icon: Stethoscope },
@@ -191,10 +232,17 @@ export default function PatientIntakeForm() {
   ];
 
   return (
-    <div className="w-full max-w-3xl mx-auto p-6 rounded-2xl bg-surface border border-border shadow-2xl">
+    <div className="w-full max-w-5xl mx-auto p-6 sm:p-8 rounded-2xl bg-surface border border-border shadow-2xl relative">
       
+      {/* 1-Click Clinical Scenario Presets */}
+      <ClinicalScenarioPresets
+        selectedId={selectedScenarioId}
+        onSelectPreset={handleSelectPreset}
+        isSubmitting={isSubmitting}
+      />
+
       {/* 4-Step Progress Indicator */}
-      <div className="flex items-center justify-between mb-8 pb-6 border-b border-border/80">
+      <div id="intake-step-progress" className="flex items-center justify-between mb-8 pb-6 border-b border-border/80">
         {stepItems.map((item) => {
           const StepIcon = item.icon;
           const isCompleted = item.num < step;
@@ -634,6 +682,85 @@ export default function PatientIntakeForm() {
         onClose={() => setIsFhirModalOpen(false)}
         onImport={handleFhirImport}
       />
+
+      {/* Smart Warm-Up & Multi-Agent Coordination Overlay */}
+      <AnimatePresence>
+        {isSubmitting && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-background/85 backdrop-blur-md flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-lg p-6 sm:p-7 rounded-2xl bg-surface border border-primary/40 shadow-[0_0_50px_rgba(13,148,136,0.25)] space-y-5 text-center relative overflow-hidden"
+            >
+              {/* Top Accent Gradient Line */}
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-teal-500 via-primary to-cyan-400 animate-pulse" />
+
+              {/* Central Pulsing Agent Radar */}
+              <div className="relative mx-auto w-16 h-16 flex items-center justify-center">
+                <div className="absolute inset-0 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+                <div className="absolute inset-2 rounded-full bg-primary/10 animate-ping opacity-25" />
+                <Activity className="h-7 w-7 text-primary" />
+              </div>
+
+              {/* Title & Micro-Status */}
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 border border-primary/25 text-primary text-[11px] font-bold uppercase tracking-wider mb-2">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                  Clinical Multi-Agent Swarm Initializing
+                </div>
+                <h3 className="text-xl font-bold text-text-primary tracking-tight font-sans">
+                  Coordinating MediGuard Engine
+                </h3>
+                <p className="text-xs text-text-secondary mt-1">
+                  Persisting encrypted patient state & dispatching agent graph to Render backend (<span className="font-mono text-primary text-[11px]">mediguard-v2-1.onrender.com</span>)...
+                </p>
+              </div>
+
+              {/* 6 Agents Pipeline Visualizer Grid */}
+              <div className="grid grid-cols-2 gap-2 text-left pt-1">
+                {[
+                  { name: 'Intake Normalizer', status: 'De-identifying & Structuring', icon: ShieldCheck, color: 'text-teal-400' },
+                  { name: 'Symptom Graph', status: 'Ontology & RAG Mapping', icon: Activity, color: 'text-cyan-400' },
+                  { name: 'OpenFDA Drug Engine', status: 'Interaction Matrix Screen', icon: Pill, color: 'text-amber-400' },
+                  { name: 'Diagnostic Swarm', status: 'Differential Reasoning', icon: Search, color: 'text-rose-400' },
+                  { name: 'Multimodal Vision', status: 'Biomarker Extraction', icon: FlaskConical, color: 'text-purple-400' },
+                  { name: 'Clinical Report', status: 'Synthesizing Dual Views', icon: FileText, color: 'text-emerald-400' },
+                ].map((agent, i) => {
+                  const Icon = agent.icon;
+                  return (
+                    <div key={i} className="flex items-center gap-2.5 p-2.5 rounded-xl bg-background/60 border border-border/70 shadow-sm">
+                      <div className="p-1.5 rounded-lg bg-surface-raised border border-border/80 shrink-0">
+                        <Icon className={`h-4 w-4 ${agent.color}`} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-bold text-text-primary truncate font-sans">{agent.name}</p>
+                        <p className="text-[9px] text-text-muted truncate">{agent.status}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Animated Progress Bar */}
+              <div className="space-y-2 pt-1">
+                <div className="w-full bg-background rounded-full h-1.5 overflow-hidden border border-border/80">
+                  <div className="bg-gradient-to-r from-teal-500 via-primary to-cyan-400 h-1.5 rounded-full animate-pulse w-full" />
+                </div>
+                <p className="text-[11px] text-text-muted flex items-center justify-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary animate-ping" />
+                  Connecting telemetry stream to live graph visualizer...
+                </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
