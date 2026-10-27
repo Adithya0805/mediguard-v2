@@ -9,6 +9,8 @@ import ConfidenceBar from '@/components/shared/ConfidenceBar';
 import UrgencyBadge from '@/components/shared/UrgencyBadge';
 import { getAuditTrail, syncToEhr } from '@/lib/api';
 import PDFDownloadManager from './PDFDownloadManager';
+import ClinicalRiskCalculators from './ClinicalRiskCalculators';
+import ClinicalEvidenceCitations from './ClinicalEvidenceCitations';
 import '@/styles/print.css';
 import { toast } from 'sonner';
 import { 
@@ -28,7 +30,9 @@ import {
   AlertOctagon,
   AlertTriangle,
   HeartPulse,
-  ShieldAlert
+  ShieldAlert,
+  Calculator,
+  BookOpen
 } from 'lucide-react';
 
 interface ReportViewerProps {
@@ -47,7 +51,7 @@ export default function ReportViewer({
 }: ReportViewerProps) {
   const RenderFHIRViewer = PropFHIRViewer || FHIRViewer;
   const RenderPDFDownloadManager = PropPDFDownloadManager || PDFDownloadManager;
-  const [activeTab, setActiveTab] = useState<'summary' | 'ddx' | 'workup' | 'multimodal' | 'meds' | 'discharge' | 'fhir'>('summary');
+  const [activeTab, setActiveTab] = useState<'summary' | 'ddx' | 'calculators' | 'evidence' | 'workup' | 'multimodal' | 'meds' | 'discharge' | 'fhir'>('summary');
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSynced, setIsSynced] = useState(false);
@@ -133,6 +137,8 @@ export default function ReportViewer({
   const tabs = [
     { id: 'summary', label: 'Clinical Summary', icon: FileText },
     { id: 'ddx', label: 'Differential Diagnosis', icon: Stethoscope },
+    { id: 'calculators', label: 'Risk Calculators', icon: Calculator },
+    { id: 'evidence', label: 'PubMed Evidence', icon: BookOpen },
     { id: 'workup', label: 'Diagnostics & Workup', icon: Activity },
     { id: 'multimodal', label: 'Labs & ECG Telemetry', icon: FlaskConical },
     { id: 'meds', label: 'Medications Screening', icon: Pill },
@@ -325,6 +331,21 @@ export default function ReportViewer({
             <DDxTable 
               ddxList={differential_diagnosis} 
               differentialSummary="ACS is the primary concern with 87% confidence. PE and hypertensive crisis are secondary differentials requiring workup to exclude."
+            />
+          </div>
+        )}
+
+        {activeTab === 'calculators' && (
+          <div className="w-full">
+            <ClinicalRiskCalculators session={session} />
+          </div>
+        )}
+
+        {activeTab === 'evidence' && (
+          <div className="w-full">
+            <ClinicalEvidenceCitations 
+              primaryDiagnosis={primary.diagnosis} 
+              chiefComplaint={session.chief_complaint} 
             />
           </div>
         )}

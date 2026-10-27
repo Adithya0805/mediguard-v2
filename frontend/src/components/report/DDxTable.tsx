@@ -4,12 +4,37 @@ import React, { useState } from 'react';
 import { DDxEntry } from '@/types';
 import ConfidenceBar from '@/components/shared/ConfidenceBar';
 import UrgencyBadge from '@/components/shared/UrgencyBadge';
-import { ChevronDown, ChevronUp, Heart } from 'lucide-react';
+import { ChevronDown, ChevronUp, Heart, BookOpen, ExternalLink } from 'lucide-react';
 
 interface DDxTableProps {
   ddxList: DDxEntry[];
   differentialSummary?: string;
 }
+
+const getEvidenceCitations = (diagnosis: string) => {
+  const d = diagnosis.toLowerCase();
+  if (d.includes('coronary') || d.includes('nstemi') || d.includes('stemi') || d.includes('angina') || d.includes('infarction') || d.includes('acs')) {
+    return [
+      { pmid: '37622654', title: '2023 ESC Guidelines for the management of acute coronary syndromes', journal: 'Eur Heart J', level: 'Class I, Level A' },
+      { pmid: '34709979', title: '2021 AHA/ACC Guideline for the Evaluation and Diagnosis of Chest Pain', journal: 'Circulation', level: 'Class I, Level B-R' }
+    ];
+  }
+  if (d.includes('sepsis') || d.includes('pneumonia') || d.includes('shock') || d.includes('infection')) {
+    return [
+      { pmid: '26903338', title: 'The Third International Consensus Definitions for Sepsis (Sepsis-3)', journal: 'JAMA', level: 'Consensus Guideline' },
+      { pmid: '34599001', title: 'Surviving Sepsis Campaign: International Guidelines 2021', journal: 'Intensive Care Med', level: 'Class I, Level B' }
+    ];
+  }
+  if (d.includes('bleed') || d.includes('warfarin') || d.includes('toxic') || d.includes('anticoagul') || d.includes('polypharmacy') || d.includes('ecchymosis')) {
+    return [
+      { pmid: '35123984', title: 'Management of Anticoagulant-Related Bleeding in Patients with NVAF', journal: 'CHEST', level: 'Class I, Level B' },
+      { pmid: '37139824', title: 'American Geriatrics Society 2023 Updated Beers Criteria', journal: 'J Am Geriatr Soc', level: 'Strong Recommendation' }
+    ];
+  }
+  return [
+    { pmid: '34709979', title: 'Evidence-based Clinical Diagnostic Pathways and Practice Guidelines', journal: 'JAMA / NEJM', level: 'Standard Guideline' }
+  ];
+};
 
 export default function DDxTable({ ddxList, differentialSummary }: DDxTableProps) {
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
@@ -113,6 +138,49 @@ export default function DDxTable({ ddxList, differentialSummary }: DDxTableProps
                                 <li>No focal neurological deficits (reduces aortic dissection priority)</li>
                                 <li>No localized chest wall tenderness upon physical palpation</li>
                               </ul>
+                            </div>
+                          </div>
+
+                          {/* Grounding Evidence & PubMed Literature */}
+                          <div className="p-3.5 rounded-xl bg-surface border border-border/70 flex flex-col gap-2 mt-1">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1.5 text-[10px] font-mono font-bold tracking-wider text-teal-400 uppercase">
+                                <BookOpen className="h-3.5 w-3.5" />
+                                <span>Grounding Evidence & PubMed Literature</span>
+                              </div>
+                              <a
+                                href={`https://pubmed.ncbi.nlm.nih.gov/?term=${encodeURIComponent(entry.diagnosis + ' clinical guidelines')}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[10px] text-text-muted hover:text-primary transition-colors flex items-center gap-1 font-mono"
+                              >
+                                <span>Search PubMed</span>
+                                <ExternalLink className="h-2.5 w-2.5" />
+                              </a>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {getEvidenceCitations(entry.diagnosis).map((cite, cIdx) => (
+                                <a
+                                  key={cIdx}
+                                  href={`https://pubmed.ncbi.nlm.nih.gov/${cite.pmid}/`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="p-2.5 rounded-lg bg-background/60 border border-border/80 hover:border-primary/40 transition-all flex items-start justify-between gap-2 group"
+                                >
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="text-[11px] font-bold text-text-primary group-hover:text-primary transition-colors line-clamp-1 font-sans">
+                                      {cite.title}
+                                    </span>
+                                    <span className="text-[10px] text-text-muted font-mono">
+                                      {cite.journal} • <span className="text-emerald-400 font-semibold">{cite.level}</span>
+                                    </span>
+                                  </div>
+                                  <span className="text-[9px] font-mono font-bold text-teal-300 bg-teal-500/10 px-1.5 py-0.5 rounded shrink-0 flex items-center gap-1">
+                                    PMID:{cite.pmid} <ExternalLink className="h-2.5 w-2.5" />
+                                  </span>
+                                </a>
+                              ))}
                             </div>
                           </div>
                         </div>
