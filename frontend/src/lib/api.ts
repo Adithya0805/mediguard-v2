@@ -426,8 +426,14 @@ export async function parseVoiceTranscript(
   if (existingData) {
     payload.session_context = { existing_data: existingData };
   }
-  const res = await api.post<VoiceParseResult>('/api/v1/voice/parse', payload);
-  return res.data;
+  try {
+    const res = await api.post<VoiceParseResult>('/api/v1/voice/parse', payload);
+    return res.data;
+  } catch (err) {
+    console.warn('Backend voice parse failed or timed out. Engaging clinical fallback parser:', err);
+    const { parseClinicalTranscriptFallback } = await import('./voiceParserFallback');
+    return parseClinicalTranscriptFallback(transcript, existingData);
+  }
 }
 
 export interface SymptomSuggestions {

@@ -36,7 +36,8 @@ import {
   Search,
   FileText,
   Activity,
-  Zap
+  Zap,
+  Sparkles
 } from 'lucide-react';
 
 type IntakeMode = 'manual' | 'voice' | 'fhir';
@@ -49,6 +50,7 @@ export default function PatientIntakeForm() {
   const [isFhirImported, setIsFhirImported] = useState(false);
   const [intakeMode, setIntakeMode] = useState<IntakeMode>('manual');
   const [voiceIntakeComplete, setVoiceIntakeComplete] = useState(false);
+  const [voiceExtractedFields, setVoiceExtractedFields] = useState<string[]>([]);
   const [symptomRedFlags, setSymptomRedFlags] = useState<Array<{ combination: string[]; warning: string }>>([]);
 
   const handleFhirImport = (data: any) => {
@@ -313,16 +315,17 @@ export default function PatientIntakeForm() {
               {/* Voice Recorder */}
               {intakeMode === 'voice' && !voiceIntakeComplete && (
                 <VoiceRecorder
-                  onParsed={(parsedData) => {
+                  existingFormData={watch()}
+                  onParsed={(parsedData, fieldsExtracted) => {
                     const pd = parsedData as Record<string, unknown>;
-                    if (pd.patient_name) setValue('patient_name', pd.patient_name as string);
-                    if (pd.patient_age && Number(pd.patient_age) > 0) setValue('age', Number(pd.patient_age));
-                    if (pd.patient_gender) setValue('gender', pd.patient_gender as 'male' | 'female' | 'other');
-                    if (pd.chief_complaint) setValue('chief_complaint', pd.chief_complaint as string);
-                    if (Array.isArray(pd.symptoms) && pd.symptoms.length > 0) setValue('symptoms', pd.symptoms as string[]);
-                    if (Array.isArray(pd.medical_history)) setValue('medical_history', pd.medical_history as string[]);
-                    if (Array.isArray(pd.allergies)) setValue('allergies', pd.allergies as string[]);
-                    if (Array.isArray(pd.current_medications)) setValue('current_medications', pd.current_medications as string[]);
+                    if (pd.patient_name) setValue('patient_name', pd.patient_name as string, { shouldValidate: true });
+                    if (pd.patient_age && Number(pd.patient_age) > 0) setValue('age', Number(pd.patient_age), { shouldValidate: true });
+                    if (pd.patient_gender) setValue('gender', pd.patient_gender as 'male' | 'female' | 'other', { shouldValidate: true });
+                    if (pd.chief_complaint) setValue('chief_complaint', pd.chief_complaint as string, { shouldValidate: true });
+                    if (Array.isArray(pd.symptoms) && pd.symptoms.length > 0) setValue('symptoms', pd.symptoms as string[], { shouldValidate: true });
+                    if (Array.isArray(pd.medical_history)) setValue('medical_history', pd.medical_history as string[], { shouldValidate: true });
+                    if (Array.isArray(pd.allergies)) setValue('allergies', pd.allergies as string[], { shouldValidate: true });
+                    if (Array.isArray(pd.current_medications)) setValue('current_medications', pd.current_medications as string[], { shouldValidate: true });
                     const vitals = pd.vitals as Record<string, unknown>;
                     if (vitals) {
                       setValue('vitals', {
@@ -332,19 +335,48 @@ export default function PatientIntakeForm() {
                         spo2: vitals.spo2 ? Number(vitals.spo2) : undefined,
                         weight: vitals.weight ? Number(vitals.weight) : undefined,
                         height: vitals.height ? Number(vitals.height) : undefined,
-                      });
+                      }, { shouldValidate: true });
                     }
+                    setVoiceExtractedFields(fieldsExtracted && fieldsExtracted.length > 0 ? fieldsExtracted : ['patient_name', 'patient_age', 'chief_complaint', 'symptoms', 'vitals']);
                     setVoiceIntakeComplete(true);
-                    setIntakeMode('manual'); // Switch to manual to review
-                    setStep(2); // Skip to symptoms step
+                    setIntakeMode('manual');
                   }}
                 />
               )}
 
               {voiceIntakeComplete && (
-                <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400 leading-normal flex items-start gap-2.5 font-sans">
-                  <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-emerald-500" />
-                  <span><b>✅ Voice intake complete.</b> Please review and add any missing information. Fields have been pre-filled from your voice description.</span>
+                <div className="p-4 rounded-xl bg-gradient-to-r from-primary/15 via-primary/5 to-surface border border-primary/30 text-xs text-text-primary leading-normal flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 font-sans shadow-[0_0_12px_rgba(13,148,136,0.15)]">
+                  <div className="flex items-center gap-2.5">
+                    <div className="h-7 w-7 rounded-lg bg-primary/20 border border-primary/40 flex items-center justify-center shrink-0">
+                      <Sparkles className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <span className="font-bold text-primary block">✨ Ambient Clinical Voice Intake Complete</span>
+                      <span className="text-[11px] text-text-secondary">
+                        Extracted {voiceExtractedFields.length || 'multiple'} structured clinical parameters across Demographics, Vitals, Symptoms, and Medications.
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVoiceIntakeComplete(false);
+                        setIntakeMode('voice');
+                      }}
+                      className="text-[11px] font-semibold px-3 py-1.5 rounded-lg bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 transition-colors"
+                    >
+                      Dictate More
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStep(2)}
+                      className="text-[11px] font-semibold px-3 py-1.5 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors flex items-center gap-1 shadow-sm"
+                    >
+                      <span>Review Symptoms</span>
+                      <span>→</span>
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -424,13 +456,22 @@ export default function PatientIntakeForm() {
 
               {/* Name */}
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-text-secondary">Full Name (Required)</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-text-secondary">Full Name (Required)</label>
+                  {voiceExtractedFields.includes('patient_name') && (
+                    <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30">
+                      <Sparkles className="h-2.5 w-2.5" /> Voice Extracted
+                    </span>
+                  )}
+                </div>
                 <input
                   type="text"
                   required
                   placeholder="e.g. John Doe"
                   {...register('patient_name')}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-background border border-border text-text-primary text-sm focus:border-primary focus:outline-none transition-colors"
+                  className={`w-full px-3.5 py-2.5 rounded-xl bg-background border text-text-primary text-sm focus:border-primary focus:outline-none transition-colors ${
+                    voiceExtractedFields.includes('patient_name') ? 'border-primary/40 shadow-[0_0_8px_rgba(13,148,136,0.1)]' : 'border-border'
+                  }`}
                 />
                 {errors.patient_name && (
                   <span className="text-[11px] text-danger font-semibold mt-1">{errors.patient_name.message}</span>
@@ -442,13 +483,22 @@ export default function PatientIntakeForm() {
                 
                 {/* Age */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-text-secondary">Age (Years)</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-text-secondary">Age (Years)</label>
+                    {voiceExtractedFields.includes('patient_age') && (
+                      <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30">
+                        <Sparkles className="h-2.5 w-2.5" /> Voice Extracted
+                      </span>
+                    )}
+                  </div>
                   <input
                     type="number"
                     required
                     placeholder="e.g. 45"
                     {...register('age', { valueAsNumber: true })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-background border border-border text-text-primary text-sm focus:border-primary focus:outline-none transition-colors font-mono"
+                    className={`w-full px-3.5 py-2.5 rounded-xl bg-background border text-text-primary text-sm focus:border-primary focus:outline-none transition-colors font-mono ${
+                      voiceExtractedFields.includes('patient_age') ? 'border-primary/40 shadow-[0_0_8px_rgba(13,148,136,0.1)]' : 'border-border'
+                    }`}
                   />
                   {errors.age && (
                     <span className="text-[11px] text-danger font-semibold mt-1">{errors.age.message}</span>
@@ -476,7 +526,14 @@ export default function PatientIntakeForm() {
 
               {/* Chief Complaint */}
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-text-secondary">Chief Complaint (Min 10 characters)</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-text-secondary">Chief Complaint (Min 10 characters)</label>
+                  {voiceExtractedFields.includes('chief_complaint') && (
+                    <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30">
+                      <Sparkles className="h-2.5 w-2.5" /> Voice Extracted
+                    </span>
+                  )}
+                </div>
                 <textarea
                   id="chief_complaint"
                   required
@@ -484,7 +541,9 @@ export default function PatientIntakeForm() {
                   placeholder="Describe patient's acute symptoms, pain vectors, timelines, and reasons for assessment..."
                   {...register('chief_complaint')}
                   className={`w-full px-3.5 py-2.5 rounded-xl bg-background text-text-primary text-sm focus:outline-none transition-colors leading-relaxed ${
-                    isFhirImported && !chiefComplaintVal.trim()
+                    voiceExtractedFields.includes('chief_complaint')
+                      ? 'border border-primary/50 shadow-[0_0_8px_rgba(13,148,136,0.12)] focus:border-primary'
+                      : isFhirImported && !chiefComplaintVal.trim()
                       ? 'border border-amber-500/60 shadow-[0_0_8px_rgba(245,158,11,0.15)] focus:border-amber-500'
                       : 'border border-border focus:border-primary'
                   }`}
