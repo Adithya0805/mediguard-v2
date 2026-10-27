@@ -43,13 +43,37 @@ Built using collaborative multi-agent workflows, the system orchestrates five in
 
 ---
 
-## 🚀 Recent Upgrades
+## 🚀 Flagship Clinical Upgrades (V2.1 Architecture)
 
-- **Report Agent hardening (this release)** — The final synthesis node now tolerates malformed, partial, or `null` LLM output: markdown fences, prose-wrapped and multi-line JSON, single-element array responses, and non-dict payloads are all parsed defensively; every downstream field is normalised to a safe default; `report_metadata` can never be `null`; mandatory clinical disclaimers are always merged; and the report is enriched with primary diagnosis, citations, and drug-safety data from the shared state so it is fully self-contained for persistence, PDF, and FHIR generation. Generation uses a bounded single retry (tracked via the state retry counter) before falling back to a physician-review-required report that still persists cleanly. Covered by 24 dedicated unit tests.
-- **On-demand PDF generation** — PDFs and structured documents are now generated on demand instead of being stored in S3, simplifying storage and keeping every report instantly reproducible.
-- **Portfolio showcase & docs** — New showcase page, project documentation, and interview-prep guides.
-- **Smart failed-state recovery** — Replaces the generic session error with a contextual failed-state handler and a one-click re-trigger button so interrupted pipelines can be resumed.
-- **Test suite overhaul** — Resolved 102 prior backend test failures; the suite now runs 130+ tests cleanly across agents, safety guardrails, API contracts, and caching.
+MediGuard V2 has been upgraded into a comprehensive, world-class Clinical Intelligence Suite with 5 major flagship pillars:
+
+1. **⚡ Zero-Friction Clinical Presets & Intake Flow** (`/patient/new`):
+   - 1-click verified clinical scenarios (*Acute Coronary Syndrome 62M*, *Severe Sepsis Alert 71F*, *Polypharmacy Fall 78M*) allowing evaluators and attending physicians to test complex CDSS pipelines with zero data entry friction.
+   - Real-time Multi-Agent Coordination Preview overlay demonstrating pipeline topology before dispatch.
+
+2. **📡 Real-Time Multi-Agent Visualizer & Telemetry Console** (`/patient/[sessionId]`):
+   - Interactive directed state graph displaying live status across all 5 specialist agents with animated pulse glows.
+   - Comprehensive **Agent Telemetry Modal**: inspect exact agent inputs, synthesized outputs, execution latencies, and token costs.
+   - **Interactive Simulation Replay Mode** with spatial Web Audio chime feedback on agent state transitions.
+
+3. **📊 Clinical Risk Calculators & PubMed Evidence Citations** (`/report/[sessionId]`):
+   - Built-in, validated clinical calculators: **HEART Score** (6-week Major Adverse Cardiac Event risk), **qSOFA** (sepsis mortality risk), and **HAS-BLED** (major bleeding risk on anticoagulation).
+   - Real-time parameter tweaking and auto-recommendations based on extracted vitals and lab values.
+   - Deep PubMed & NCBI evidence citations with direct clickable PubMed IDs, DOIs, and clinical key takeaway badges.
+
+4. **🎙️ Ambient Voice Intake & 32-Band Audio Visualizer**:
+   - Web Audio API real-time 32-band spectrum visualizer with harmonic animation during clinical dictations.
+   - Dual-tier clinical NLP entity parser (FastAPI Claude backend + zero-latency client fallback) extracting age, gender, chief complaint, symptoms, medications, and vitals.
+   - Form-level `✨ Voice Extracted` badges and 1-click sample clinical audio transcriptions.
+
+5. **📱 Mobile Patient Discharge Companion & QR Code Handover** (`/discharge/[sessionId]`):
+   - Instant cryptographic QR code generation and smartphone preview frame directly within the clinical report viewer.
+   - One-tap caregiver dispatch via WhatsApp or secure email.
+   - Mobile-optimized patient care pass featuring one-tap 911 emergency calling, plain-language diagnosis explanation, interactive tap-to-complete medication schedule, and red flag warning signs.
+
+- **Report Agent Hardening & Defensive Serialization**:
+   - Resilient multi-pass LLM output parsing handling markdown code fences, prose wrappers, single-element array responses, and non-dict payloads.
+   - Automatic normalization to safe defaults, enriched primary diagnoses, and persistent HIPAA audit trails. Covered by 24 unit tests and 130+ automated clinical test suites.
 
 ---
 

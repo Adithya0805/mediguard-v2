@@ -11,6 +11,7 @@ import { getAuditTrail, syncToEhr } from '@/lib/api';
 import PDFDownloadManager from './PDFDownloadManager';
 import ClinicalRiskCalculators from './ClinicalRiskCalculators';
 import ClinicalEvidenceCitations from './ClinicalEvidenceCitations';
+import MobileDischargeModal from './MobileDischargeModal';
 import '@/styles/print.css';
 import { toast } from 'sonner';
 import { 
@@ -32,7 +33,9 @@ import {
   HeartPulse,
   ShieldAlert,
   Calculator,
-  BookOpen
+  BookOpen,
+  Smartphone,
+  QrCode
 } from 'lucide-react';
 
 interface ReportViewerProps {
@@ -55,6 +58,7 @@ export default function ReportViewer({
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSynced, setIsSynced] = useState(false);
+  const [isMobileModalOpen, setIsMobileModalOpen] = useState(false);
 
   // Destructure with default values to safeguard against undefined properties
   const {
@@ -187,6 +191,15 @@ export default function ReportViewer({
               <CloudLightning className="h-3.5 w-3.5" />
             )}
             <span>{isSyncing ? 'Syncing...' : isSynced ? 'Synced with EHR Sandbox' : 'Sync to Hospital EHR'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsMobileModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/15 border border-primary/30 text-primary hover:bg-primary/25 transition-all text-xs font-semibold shadow-sm hover:scale-[1.01]"
+          >
+            <Smartphone className="h-3.5 w-3.5" />
+            <span>Mobile Patient Pass</span>
           </button>
 
           <button
@@ -565,14 +578,24 @@ export default function ReportViewer({
                   Plain-language guidance prepared for {session.patient_name} and family caregivers.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => triggerPrint('patient')}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition-all shadow-md self-start md:self-auto"
-              >
-                <Printer className="h-4 w-4" />
-                Print Care Guide
-              </button>
+              <div className="flex items-center gap-2 flex-wrap self-start md:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setIsMobileModalOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 text-xs font-bold transition-all shadow-md"
+                >
+                  <QrCode className="h-4 w-4 text-teal-400" />
+                  Scan Mobile QR Pass
+                </button>
+                <button
+                  type="button"
+                  onClick={() => triggerPrint('patient')}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition-all shadow-md"
+                >
+                  <Printer className="h-4 w-4" />
+                  Print Care Guide
+                </button>
+              </div>
             </div>
 
             {/* Condition Explained Simply */}
@@ -881,6 +904,14 @@ export default function ReportViewer({
           </div>
         </div>
       )}
+
+      {/* Mobile Discharge & Handover Modal */}
+      <MobileDischargeModal
+        isOpen={isMobileModalOpen}
+        onClose={() => setIsMobileModalOpen(false)}
+        session={session}
+        report={report}
+      />
 
     </div>
   );
