@@ -101,9 +101,9 @@ jobs:
     needs: [frontend-build, deploy-backend]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./frontend
+    # Run Vercel CLI from the repository root. The Vercel project already
+    # has frontend configured as its Root Directory; running inside ./frontend
+    # makes the CLI resolve frontend/frontend and fail.
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
