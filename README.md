@@ -372,7 +372,7 @@ No registration or credential setup is required to evaluate the clinical pipelin
 * **Lead AI Engineer**: Adithya Kuppusamy
 * **Specialization**: Applied AI, Healthcare Informatics & Multi-Agent Distributed Systems
 * **Location**: Tamil Nadu, India
-* **Portfolio**: [adithyaai.is-cool.dev](https://adithyaai.is-cool.dev)
+* **Portfolio**: [adithyaai.is-cool.dev](https://adithya-ai-hub.vercel.app/)
 * **Connect**: [LinkedIn Profile](https://www.linkedin.com/in/adithya-kuppusamy-854746270) | [GitHub](https://github.com/Adithya0805)
 
 ---
