@@ -13,7 +13,8 @@ import {
   ChevronLeft, 
   ChevronRight,
   ShieldCheck,
-  Server
+  Server,
+  Atom
 } from 'lucide-react';
 import { useUiStore } from '@/store/uiStore';
 import { checkHealth } from '@/lib/api';
@@ -46,6 +47,7 @@ export default function Sidebar() {
     { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, id: 'dashboard' },
     { label: 'New Patient', path: '/patient/new', icon: UserPlus, id: 'new-patient' },
     { label: 'All Sessions', path: '/sessions', icon: ClipboardList, id: 'sessions' },
+    { label: 'Simulation Studio', path: '/simulation-studio', icon: Atom, id: 'simulation-studio' },
     { label: 'Clinical Reports', path: '/sessions', icon: FileText, id: 'reports' }, // fallbacks to sessions for selector
     { label: 'Settings', path: '/dashboard', icon: Settings, id: 'settings' }
   ];
@@ -65,7 +67,8 @@ export default function Sidebar() {
             (item.id === 'new-patient' && pathname === '/patient/new') ||
             (item.id === 'sessions' && pathname === '/sessions') ||
             (item.id === 'reports' && pathname?.includes('/report/')) ||
-            (item.id === 'dashboard' && pathname === '/dashboard');
+            (item.id === 'dashboard' && pathname === '/dashboard') ||
+            (item.id === 'simulation-studio' && pathname === '/simulation-studio');
           
           return (
             <Link
