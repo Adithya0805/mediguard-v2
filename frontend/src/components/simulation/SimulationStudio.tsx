@@ -56,11 +56,36 @@ export default function SimulationStudio() {
   async function importFile(file?:File){
     if(!file)return;
     try{
-      const text=await file.text();let positions:Point3[][],boxNm=data.boxNm,energies:number[]|undefined;
-      if(file.name.toLowerCase().endsWith('.json')){const obj=JSON.parse(text) as {positions?:unknown;box_nm?:number;energies?:unknown};positions=validate(obj.positions);if(typeof obj.box_nm==='number'&&Number.isFinite(obj.box_nm)&&obj.box_nm>0)boxNm=obj.box_nm;if(Array.isArray(obj.energies)&&obj.energies.every(n=>typeof n==='number'&&Number.isFinite(n)))energies=obj.energies as number[];}
-      else if(file.name.toLowerCase().endsWith('.csv'))positions=validate(parseCsv(text));else throw new Error('Use JSON or CSV. Convert .npy files in Colab first.');
-      setPlaying(false);setData({positions,boxNm,energies,name:file.name,preview:false});setFrame(0);setNotice('Imported '+file.name+': '+positions.length+' frames, '+positions[0].length+' particles per frame.');setFailed(false);
-    }catch(e){setNotice(e instanceof Error?e.message:'Import failed.');setFailed(true);}
+      const text=await file.text();
+      let positions:Point3[][],boxNm=data.boxNm,energies:number[]|undefined;
+      if(file.name.toLowerCase().endsWith('.json')){
+        let parsed:unknown;
+        try { parsed=JSON.parse(text); } catch { throw new Error('Invalid JSON syntax. Check quotes, brackets, and commas, then try again.'); }
+        if(!parsed || typeof parsed!=='object' || Array.isArray(parsed)) throw new Error('JSON root must be an object containing a positions array.');
+        const obj=parsed as {positions?:unknown;box_nm?:unknown;energies?:unknown};
+        positions=validate(obj.positions);
+        if(obj.box_nm!==undefined){
+          if(typeof obj.box_nm!=='number'||!Number.isFinite(obj.box_nm)||obj.box_nm<=0) throw new Error('box_nm must be a positive finite number.');
+          boxNm=obj.box_nm;
+        }
+        if(obj.energies!==undefined){
+          if(!Array.isArray(obj.energies)||!obj.energies.every(n=>typeof n==='number'&&Number.isFinite(n))) throw new Error('energies must be an array of finite numbers.');
+          if(obj.energies.length!==positions.length) throw new Error('Energy count must match the number of trajectory frames.');
+          energies=obj.energies as number[];
+        }
+      } else if(file.name.toLowerCase().endsWith('.csv')) {
+        positions=validate(parseCsv(text));
+      } else throw new Error('Use JSON or CSV. Convert .npy files in Colab first.');
+      // Commit new data only after every validation succeeds. Failed imports keep the previous dataset.
+      setPlaying(false);
+      setData({positions,boxNm,energies,name:file.name,preview:false});
+      setFrame(0);
+      setNotice('Imported '+file.name+': '+positions.length+' frames, '+positions[0].length+' particles per frame.');
+      setFailed(false);
+    }catch(e){
+      setNotice(e instanceof Error?e.message:'Import failed for an unknown reason. The previous dataset was kept.');
+      setFailed(true);
+    }
   }
   function exportFrame(){const rows=['particle_index,x_nm,y_nm,z_nm'];points.forEach((p,i)=>rows.push([i,...p].join(',')));const url=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='mediguard-simulation-frame-'+(frame+1)+'.csv';a.click();URL.revokeObjectURL(url);}
   return <div className="space-y-5">
@@ -68,13 +93,13 @@ export default function SimulationStudio() {
     <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">{[['Particles / frame',String(points.length)],['Current frame',(frame+1)+' / '+data.positions.length],['Step label',data.preview?'Preview':String(frame)],['Potential energy',data.energies?.length?data.energies[Math.min(frame,data.energies.length-1)].toFixed(4)+' kJ/mol':'Not provided']].map(([l,v])=><div key={l} className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4"><div className="text-xs text-slate-400">{l}</div><div className="mt-3 break-words text-xl font-bold text-slate-100">{v}</div></div>)}</div>
     <div className="grid gap-4 xl:grid-cols-[270px_minmax(0,1fr)]">
       <aside className="space-y-5 rounded-2xl border border-slate-800 bg-slate-900/70 p-4"><div className="flex items-center gap-2 text-sm font-semibold text-slate-100"><Activity className="h-4 w-4 text-cyan-300"/>Viewer controls</div>
-        <label className="block text-xs text-slate-400">Import trajectory (JSON / CSV)<span className="mt-2 flex items-center gap-2 rounded-xl border border-dashed border-slate-700 bg-slate-950/60 p-3"><FileUp className="h-4 w-4 text-cyan-300"/><input className="min-w-0 w-full text-xs" type="file" accept=".json,.csv" onChange={e=>void importFile(e.target.files?.[0])}/></span></label>
+        <label className="block text-xs text-slate-400">Import trajectory (JSON / CSV)<span className="mt-2 flex items-center gap-2 rounded-xl border border-dashed border-slate-700 bg-slate-950/60 p-3"><FileUp className="h-4 w-4 text-cyan-300"/><input className="min-w-0 w-full text-xs" type="file" accept=".json,.csv" aria-label="Choose trajectory JSON or CSV file" onChange={e=>{const file=e.target.files?.[0];e.currentTarget.value='';void importFile(file);}}/></span></label>
         <div><label htmlFor="sim-speed" className="mb-2 block text-xs text-slate-400">Playback speed</label><select id="sim-speed" value={speed} onChange={e=>setSpeed(Number(e.target.value))} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"><option value="700">0.5×</option><option value="350">1×</option><option value="175">2×</option><option value="90">4×</option></select></div>
         <div><label htmlFor="sim-size" className="mb-2 block text-xs text-slate-400">Particle size: {size}</label><input id="sim-size" type="range" min="2" max="12" value={size} onChange={e=>setSize(Number(e.target.value))} className="w-full accent-cyan-400"/></div>
         <div><label htmlFor="sim-colour" className="mb-2 block text-xs text-slate-400">Colour by</label><select id="sim-colour" value={colour} onChange={e=>setColour(e.target.value)} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"><option value="height">Z height</option><option value="index">Particle index</option></select></div>
         <div className="grid grid-cols-2 gap-2"><button onClick={()=>setPlaying(v=>!v)} className="inline-flex items-center justify-center gap-2 rounded-lg bg-cyan-600 px-3 py-2 text-sm font-semibold text-white hover:bg-cyan-500">{playing?<Pause className="h-4 w-4"/>:<Play className="h-4 w-4"/>}{playing?'Pause':'Play'}</button><button onClick={()=>setRotation({x:-.42,y:.62})} className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800"><RotateCcw className="h-4 w-4"/>Reset view</button></div>
         <button onClick={exportFrame} className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800"><Download className="h-4 w-4"/>Export frame CSV</button>
-        <div className={'rounded-xl border p-3 text-xs leading-relaxed '+(failed?'border-rose-500/30 bg-rose-500/10 text-rose-200':'border-emerald-500/20 bg-emerald-500/5 text-emerald-200')}><div className="mb-1 flex items-center gap-2 font-semibold">{failed?<AlertCircle className="h-4 w-4"/>:<CheckCircle2 className="h-4 w-4"/>}{failed?'Import not applied':'Dataset status'}</div>{notice}</div>
+        <div role={failed?'alert':'status'} aria-live="polite" className={'rounded-xl border p-3 text-xs leading-relaxed '+(failed?'border-rose-500/30 bg-rose-500/10 text-rose-200':'border-emerald-500/20 bg-emerald-500/5 text-emerald-200')}><div className="mb-1 flex items-center gap-2 font-semibold">{failed?<AlertCircle className="h-4 w-4"/>:<CheckCircle2 className="h-4 w-4"/>}{failed?'Import not applied':'Dataset status'}</div>{notice}{failed&&<p className="mt-2 text-rose-100">The previously loaded dataset has been preserved. Choose another file to retry.</p>}</div>
       </aside>
       <div className="min-w-0 space-y-4"><section className="overflow-hidden rounded-2xl border border-slate-800 bg-[#080f1d]"><div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 px-4 py-3"><div className="text-sm font-semibold text-slate-100">3D particle viewport</div><div className="text-xs text-slate-400">{data.name} · {data.boxNm.toFixed(2)} nm box</div></div><canvas ref={canvasRef} className="h-[430px] w-full touch-none cursor-grab active:cursor-grabbing" onPointerDown={e=>{drag.current={x:e.clientX,y:e.clientY,rx:rotation.x,ry:rotation.y};e.currentTarget.setPointerCapture(e.pointerId);}} onPointerMove={e=>{if(!drag.current)return;setRotation({x:drag.current.rx+(e.clientY-drag.current.y)*.008,y:drag.current.ry+(e.clientX-drag.current.x)*.008});}} onPointerUp={()=>{drag.current=null;}} onPointerCancel={()=>{drag.current=null;}} aria-label="Projected 3D particle view; drag to rotate."/><div className="flex items-center gap-2 border-t border-slate-800 px-4 py-3"><button aria-label="Previous frame" onClick={()=>{setPlaying(false);setFrame(f=>Math.max(0,f-1));}} className="rounded-lg border border-slate-700 p-2">←</button><input aria-label="Trajectory frame" type="range" min="0" max={data.positions.length-1} value={frame} onChange={e=>{setPlaying(false);setFrame(Number(e.target.value));}} className="min-w-24 flex-1 accent-cyan-400"/><button aria-label="Next frame" onClick={()=>{setPlaying(false);setFrame(f=>Math.min(data.positions.length-1,f+1));}} className="rounded-lg border border-slate-700 p-2">→</button><span className="text-xs text-slate-400">{frame+1} / {data.positions.length}</span></div></section>
       <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4"><div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-semibold text-slate-100">Potential energy history</h2><span className="text-xs text-slate-500">{data.energies?.length?'Imported energy series':'No energy series provided'}</span></div>{data.energies&&data.energies.length>1?<svg viewBox="0 0 800 180" role="img" aria-label="Potential energy chart" className="h-44 w-full"><line x1="40" y1="12" x2="40" y2="145" stroke="#334155"/><line x1="40" y1="145" x2="780" y2="145" stroke="#334155"/>{(()=>{const a=data.energies as number[],min=Math.min(...a),max=Math.max(...a),span=max-min||1;return <polyline points={a.map((v,i)=>(40+i*740/Math.max(1,a.length-1))+','+(135-(v-min)/span*110)).join(' ')} fill="none" stroke="#22D3EE" strokeWidth="2.5"/>;})()}</svg>:<div className="flex h-32 items-center justify-center rounded-xl border border-dashed border-slate-800 text-center text-sm text-slate-500">Import JSON with an energies array to plot energy values.</div>}<p className="mt-2 text-xs leading-relaxed text-slate-500">Saved-data viewer only. It does not run OpenMM, calculate forces, or provide clinical recommendations.</p></section></div>
