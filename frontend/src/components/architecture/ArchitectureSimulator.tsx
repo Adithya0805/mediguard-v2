@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import {
   Activity, ArrowDown, ArrowRight, BrainCircuit, CheckCircle2, CircleHelp,
   Database, GitBranch, Layers3, Network, Search, ShieldAlert, Workflow,
-  XCircle, FileText, Server, Stethoscope, Waypoints
+  FileText, Stethoscope, Waypoints
 } from 'lucide-react';
 
 type LayerId = 'experience' | 'orchestration' | 'agents' | 'intelligence' | 'data' | 'observability';
