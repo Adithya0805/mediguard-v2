@@ -119,10 +119,16 @@ export default function LandingPage() {
                 <ArrowRight className="h-4.5 w-4.5" />
               </Link>
               <Link
+                href="/architecture-simulator"
+                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-surface border border-primary/40 text-primary hover:bg-primary/10 transition-all font-semibold text-sm hover:scale-[1.02]"
+              >
+                <span>Architecture Simulator</span>
+              </Link>
+              <Link
                 href="/showcase"
                 className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-surface border border-border text-text-secondary hover:text-text-primary hover:bg-surface-raised transition-all font-semibold text-sm hover:scale-[1.02]"
               >
-                <span>Project Showcase</span>
+                <span>Showcase</span>
               </Link>
               <Link
                 href="/dashboard"

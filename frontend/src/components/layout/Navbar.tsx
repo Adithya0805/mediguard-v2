@@ -84,6 +84,7 @@ export default function Navbar() {
     { label: 'Dashboard', path: '/dashboard', id: 'dashboard' },
     { label: 'New Patient', path: '/patient/new', id: 'new-patient' },
     { label: 'Sessions', path: '/sessions', id: 'sessions' },
+    { label: 'Architecture', path: '/architecture-simulator', id: 'architecture' },
   ];
 
   const getRoleBadge = (role: string) => {

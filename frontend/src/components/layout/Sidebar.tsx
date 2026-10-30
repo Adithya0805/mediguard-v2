@@ -46,6 +46,7 @@ export default function Sidebar() {
     { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, id: 'dashboard' },
     { label: 'New Patient', path: '/patient/new', icon: UserPlus, id: 'new-patient' },
     { label: 'All Sessions', path: '/sessions', icon: ClipboardList, id: 'sessions' },
+    { label: 'Architecture', path: '/architecture-simulator', icon: Server, id: 'architecture' },
     { label: 'Clinical Reports', path: '/sessions', icon: FileText, id: 'reports' }, // fallbacks to sessions for selector
     { label: 'Settings', path: '/dashboard', icon: Settings, id: 'settings' }
   ];

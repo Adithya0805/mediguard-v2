@@ -19,17 +19,28 @@ export default function PageWrapper({ children }: PageWrapperProps) {
   const loadFromStorage = useAuthStore((state) => state.loadFromStorage);
 
   const isAuthOrLanding = pathname === '/login' || pathname === '/';
+  const isPublicRoute = 
+    isAuthOrLanding || 
+    pathname === '/demo' || 
+    pathname === '/showcase' || 
+    pathname === '/architecture-simulator' ||
+    Boolean(pathname?.startsWith('/discharge/'));
 
   React.useEffect(() => {
-    if (!isAuthOrLanding) {
+    if (!isPublicRoute) {
       const hasToken = localStorage.getItem('mediguard_clinical_token');
       if (!hasToken) {
         router.push('/login');
       } else {
         loadFromStorage();
       }
+    } else {
+      const hasToken = localStorage.getItem('mediguard_clinical_token');
+      if (hasToken) {
+        loadFromStorage();
+      }
     }
-  }, [pathname, isAuthOrLanding, loadFromStorage, router]);
+  }, [pathname, isPublicRoute, loadFromStorage, router]);
 
   if (isAuthOrLanding) {
     return (
